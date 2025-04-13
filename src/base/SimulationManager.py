@@ -3,47 +3,38 @@ import numpy as np
 from typing import Callable, List, Tuple
 
 class SimulationManager:
-    def __init__(self, simulationArrays: List[np.ndarray], simulate_point: Callable[[int, int], Tuple[float, float]]):
-        """
-        Args:
-            simulationArrays (List[np.ndarray]): Arrays de iteración para la simulación.
-            simulate_point (Callable): Función que simula un punto dado (i, j).
-        """
-        self.simulationArrays = simulationArrays
-        self.simulate_point = simulate_point
+    def __init__(
+        self,
+        lenArrays: List[int],
+        updateParameters: Callable[[int, int], None],
+        simulatePoint: Callable[[], Tuple[float, float]]
+    ):
+        self.lenArrays = lenArrays  # [lenX, lenY]
+        self.updateParameters = updateParameters
+        self.simulatePoint = simulatePoint
 
     def bidimensionalSimulation(self) -> Tuple[np.ndarray, np.ndarray]:
-        arrayX = self.simulationArrays[0]
-        arrayY = self.simulationArrays[1]
-        numXValues = len(arrayX)
-        numYValues = len(arrayY)
+        lenX, lenY = self.lenArrays
 
-        # Parallelize the simulation over all grid points
+        # Ejecutamos las simulaciones en paralelo
         results = Parallel(n_jobs=-1)(
-            delayed(self.simulate_point)(i, j) for i in range(numXValues) for j in range(numYValues)
+            delayed(self._simulate_point)(i, j)
+            for i in range(lenX)
+            for j in range(lenY)
         )
 
-        # Initialize the current array
-        currentArray = np.zeros((numYValues, numXValues, 2))
+        # Inicializamos los arrays de resultados
+        sumCurrent = np.zeros((lenY, lenX))
+        polarity = np.zeros((lenY, lenX))
 
-        # Populate the current array with the results
-        for j, i, current1, current2 in results:
-            currentArray[j, i, 0] = current1
-            currentArray[j, i, 1] = current2
-
-        # Compute sumCurrent and polarity
-        sumCurrent = self.computeSumCurrent(currentArray)
-        polarity = self.computePolarity(currentArray)
+        # Llenamos con los resultados
+        for i, j, currentSum, currentPol in results:
+            sumCurrent[j, i] = currentSum
+            polarity[j, i] = currentPol
 
         return sumCurrent, polarity
 
-    def computeSumCurrent(self, currentArray: np.ndarray) -> np.ndarray:
-        return np.sum(currentArray, axis=2)
-
-    def computePolarity(self, currentArray: np.ndarray) -> np.ndarray:
-        return np.divide(
-            (currentArray[:, :, 0] - currentArray[:, :, 1]),
-            (currentArray[:, :, 0] + currentArray[:, :, 1]),
-            out=np.zeros_like(currentArray[:, :, 0]),
-            where=(currentArray[:, :, 0] + currentArray[:, :, 1]) != 0
-        )
+    def _simulate_point(self, i: int, j: int) -> Tuple[int, int, float, float]:
+        self.updateParameters(i, j)
+        currentSum, currentPol = self.simulatePoint()
+        return i, j, currentSum, currentPol

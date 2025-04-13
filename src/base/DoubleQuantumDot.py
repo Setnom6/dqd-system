@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 from qutip import *
 from enum import Enum
 
@@ -36,11 +36,16 @@ class DoubleQuantumDot:
     OME: np.ndarray
     detuning: float
     groundRightEnergy: float
+    sumCurrent: float
+    polarity: float
 
     def __init__(self, parameters: Dict[str, Any] = None) -> None:
         self._initializeDefaultParameters()
         if parameters is not None:
             self.setParameters(parameters)
+
+        self.sumCurrent = None
+        self.polarity = None
 
     def _initializeDefaultParameters(self) -> None:
         """Initialize default parameters for the Double Quantum Dot system."""
@@ -77,6 +82,10 @@ class DoubleQuantumDot:
             if key == ["gFactor", "magneticField"]:
                 self.zeeman[0] = self.gFactor[0] @ self.magneticField
                 self.zeeman[1] = self.gFactor[1] @ self.magneticField
+
+        if parameters is not None or parameters is not {}:
+            self.sumCurrent = None
+            self.polarity = None
 
     def _timeIndependentHamiltonian(self) -> np.ndarray:
         """Calculate the time-independent Hamiltonian as a numpy matrix."""
@@ -174,7 +183,7 @@ class DoubleQuantumDot:
 
         return chargeObservables
 
-    def simulate(self, iterationsPerPeriod = 20) -> qutip.solver.Result:
+    def computeCurrent(self, iterationsPerPeriod = 20) -> None:
         """Run the simulation for the Double Quantum Dot system."""
         T = 2 * np.pi
         H0 = Qobj(self._timeIndependentHamiltonian())
@@ -192,7 +201,18 @@ class DoubleQuantumDot:
 
         times = np.linspace(0, T, int(iterationsPerPeriod))
 
-        return mesolve(H, rhoSS, times, c_ops=collapseOperatorsList, e_ops=observables)
+        results = mesolve(H, rhoSS, times, c_ops=collapseOperatorsList, e_ops=observables)
+
+        spinUp = np.mean(results.expect[3])
+        spinDown = np.mean(results.expect[4])
+        self.sumCurrent = spinUp + spinDown
+        self.polarity = (spinUp - spinDown) / (spinUp + spinDown)
+        return None
+
+    def getCurrent(self,  iterationsPerPeriod = 20) -> Tuple[float, float]:
+        if self.sumCurrent is None or self.polarity is None:
+            self.computeCurrent(iterationsPerPeriod)
+        return self.sumCurrent, self.polarity
 
     def toDict(self) -> Dict[str, Any]:
         dictToReturn = {

@@ -1,56 +1,41 @@
 import numpy as np
 from typing import Dict, Any, List, Tuple
-from src.base.attributeInterpreter import processFixedParameters, processIterationParameters, obtainNewVariableToSet
+from src.base.AttributeInterpreter import AttributeInterpreter
 from src.base.DoubleQuantumDot import DoubleQuantumDot
 from src.base.SimulationManager import SimulationManager
 
 
 class DQDSystem:
-    def __init__(self, fixedParameters: Dict[str, Any], arrays: List[np.ndarray],
-                 iterationParameters: List[Dict[str, str]]) -> None:
-        if len(arrays) != len(iterationParameters):
-            raise ValueError("The number of arrays must match the number of iteration parameters.")
+    def __init__(self, fixedParameters: Dict[str, Any], iterationParameters: List[Dict[str, Any]]) -> None:
+        self.attributeInterpreter = AttributeInterpreter(fixedParameters, iterationParameters)
+        self.dqdObject = self.createDqdObject()
 
-        for i, array in enumerate(arrays):
-            if not isinstance(array, np.ndarray):
-                raise TypeError(f"The array at index {i} is not a numpy array.")
-
-        self.dqdObject = self.createDqdObject(fixedParameters)
-        self.iterationArrays = arrays
-        self.parametersInfo = processIterationParameters(iterationParameters)
-
-    def createDqdObject(self, fixedParams: Dict[str, Any]):
-        adjustedParams = processFixedParameters(fixedParams)
+    def createDqdObject(self):
+        adjustedParams = self.attributeInterpreter.fixedParameters
         return DoubleQuantumDot(adjustedParams)
 
-    def simulatePoint(self, i: int, j: int, parameterX: int, parameterY: int) -> Tuple[int, int, float, float]:
-        """
-        Simulates a single point in the grid.
+    def updateDQDParameters(self, i:int, j:int):
+        previousXValue = self.dqdObject.getAttributeValue(self.attributeInterpreter.xName())
+        previousYValue = self.dqdObject.getAttributeValue(self.attributeInterpreter.yName())
 
-        Args:
-            i (int): Index for the X parameter.
-            j (int): Index for the Y parameter.
-            parameterX (int): Index of the X parameter in iterationArrays.
-            parameterY (int): Index of the Y parameter in iterationArrays.
+        updaterFunctions = self.attributeInterpreter.getUpdateFunctions(i,j)
+        newDictX = updaterFunctions[0](previousXValue)
+        newDictY = updaterFunctions[1](previousYValue)
 
-        Returns:
-            Tuple[int, int, float, float]: Indices and current values.
-        """
-        newXDictToSet = obtainNewVariableToSet(self.parametersInfo, self.iterationArrays, self.dqdObject, i, parameterX)
-        newYDictToSet = obtainNewVariableToSet(self.parametersInfo, self.iterationArrays, self.dqdObject, j, parameterY)
-        self.dqdObject.setParameters(newXDictToSet)
-        self.dqdObject.setParameters(newYDictToSet)
+        self.dqdObject.setParameters(newDictX)
+        self.dqdObject.setParameters(newDictY)
 
-        result = self.dqdObject.simulate()
-        current1 = np.mean(result.expect[3])
-        current2 = np.mean(result.expect[4])
-        return j, i, current1, current2
+    def simulatePoint(self) -> Tuple[float, float]:
+        sumCurrent, polarity  = self.dqdObject.getCurrent()
+        return sumCurrent, polarity
 
-    def bidimensionalSimulation(self, parameterX: int = 0, parameterY: int = 1) -> Tuple[np.ndarray, np.ndarray]:
-        simulationArrays = [self.iterationArrays[parameterX], self.iterationArrays[parameterY]]
+    def bidimensionalSimulation(self) -> Tuple[np.ndarray, np.ndarray]:
+        lenX = len(self.attributeInterpreter.iterationArrays[0])
+        lenY = len(self.attributeInterpreter.iterationArrays[1])
         simulationManager = SimulationManager(
-            simulationArrays,
-            lambda i, j: self.simulatePoint(i, j, parameterX, parameterY)
+            [lenX, lenY],
+            self.updateDQDParameters,
+            self.simulatePoint
         )
         return simulationManager.bidimensionalSimulation()
 
