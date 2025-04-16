@@ -256,4 +256,5 @@ fabric.properties
 
 **/data/
 **/plots/
+**/results/
 **.mp4

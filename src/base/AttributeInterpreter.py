@@ -5,10 +5,31 @@ import numpy as np
 
 
 class AttributeInterpreter:
+    LATEX_SYMBOLS = {
+        "current": r"$I/ e \Gamma$",
+        "polarity": r"$P$",
+        "detuning": r"$\delta$",
+        "zeeman": r"$Z$",
+        "acAmplitude": r"$A_{ac}$",
+        "tau": r"$\tau$",
+        "chi": r"$\chi$",
+        "gamma": r"$\gamma$",
+        "acFrequency": r"$\omega$",
+        "magneticField": r"$B$",
+        "gFactor": r"$g$",
+        "X": r"$_{X,",
+        "Y": r"$_{Y,",
+        "Z": r"$_{Z,",
+        "M": r"$_{mod}$",
+        "Left": r"\text{Left}}$",
+        "Right": r"\text{Right}$",
+        "alphaThetaAngle": r"$\theta_{SO}$",
+        "alphaPhiAngle": r"$\phi_{SO}$",
+    }
 
     def __init__(self, fixedParameters: Dict[str, Any], iterationParameters: List[Dict[str, Any]]):
         self.fixedParameters = self.processFixedParameters(fixedParameters)
-        self.iterationArrays, self.iterationParametersInfo = self.processIterationParameters(iterationParameters)
+        self.iterationArrays, self.iterationParametersFeatures = self.processIterationParameters(iterationParameters)
 
     def processFixedParameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         fixedParamsWithoutLeftRight = self.processLeftRightAttributes(parameters)
@@ -16,56 +37,34 @@ class AttributeInterpreter:
 
         for key, value in fixedParamsWithoutLeftRight.items():
             if key == DQDAttributes.GAMMA.value:
-                # Ensure gamma is a (2, 1) array
                 adjustedParams[key] = np.array(value).reshape((2, 1))
-
             elif key == DQDAttributes.ZEEMAN.value:
-                # Ensure zeeman is a (2, 3) array
                 adjustedParams[key] = np.array(value).reshape((2, 3))
-
             elif key == DQDAttributes.MAGNETIC_FIELD.value:
-                # Ensure magneticField is a (3,) array
                 adjustedParams[key] = np.array(value).reshape((3,))
-
             elif key == DQDAttributes.G_FACTOR.value:
-                # Ensure gFactor is a (2, 3, 3) array
                 value = np.array(value)
-                if value.shape == (2, 3):  # Case where it's two lists of 3 elements
+                if value.shape == (2, 3):
                     gFactor = np.zeros((2, 3, 3))
                     for i in range(2):
                         np.fill_diagonal(gFactor[i], value[i])
                     adjustedParams[key] = gFactor
-                elif value.shape == (2, 3, 3):  # Case where it's already 3x3 matrices
+                elif value.shape == (2, 3, 3):
                     adjustedParams[key] = np.array(value).reshape((2, 3, 3))
                 else:
                     raise ValueError(f"Invalid shape for G_FACTOR: {value.shape}. Expected (2, 3) or (2, 3, 3).")
-
             elif key == DQDAttributes.FACTOR_OME.value:
                 raise ValueError("OME term cannot be determined a priori.")
-
             else:
-                # For scalar values, just pass them directly
                 adjustedParams[key] = value
 
-            return adjustedParams
+        return adjustedParams
 
     def processLeftRightAttributes(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Processes custom parameters containing 'Left' or 'Right' in their keys.
-        Combines the corresponding values into a single key without 'Left' or 'Right'.
-
-        Args:
-            parameters (Dict[str, Any]): Dictionary of parameters provided by the user.
-
-        Returns:
-            Dict[str, Any]: Dictionary with adjusted parameters.
-        """
         adjustedParams = {}
         tempStorage = {}
 
-        # Iterate through all keys in the dictionary
         for key, value in parameters.items():
-            # Look for keys containing 'Left' or 'Right'
             match = re.match(r"(.+)(Left|Right)$", key)
             if match:
                 baseKey, position = match.groups()
@@ -73,107 +72,169 @@ class AttributeInterpreter:
                     tempStorage[baseKey] = {}
                 tempStorage[baseKey][position] = value
             else:
-                # If it doesn't contain 'Left' or 'Right', copy directly
                 adjustedParams[key] = value
 
-        # Combine 'Left' and 'Right' keys into a single key
         for baseKey, positions in tempStorage.items():
             leftValue = positions.get("Left")
             rightValue = positions.get("Right")
             if leftValue is not None and rightValue is not None:
-                # Combine the values into a list or array
                 adjustedParams[baseKey] = [leftValue, rightValue]
             elif leftValue is not None:
-                # If only 'Left' exists, use it as the sole value
                 adjustedParams[baseKey] = [leftValue]
             elif rightValue is not None:
-                # If only 'Right' exists, use it as the sole value
                 adjustedParams[baseKey] = [rightValue]
 
         return adjustedParams
 
-    def processIterationParameters(self, iterationParameters: List[Dict[str, Any]]) -> Tuple[List[np.ndarray], List[Dict[str, Any]]]:
-        allParameters = []
+    def processIterationParameters(self, iterationParameters: List[Dict[str, Any]]) -> Tuple[List[np.ndarray], List[str]]:
         iterationArrays = []
+        iterationParametersFeatures = []
+
         for parameterDict in iterationParameters:
-            parameterInfo = {}
-
-            parameterInfo["name"], parameterInfo["axis"], parameterInfo["side"] = self.parseAttributeString(
-                parameterDict["features"])
-
-            parameterInfo["label"] = parameterDict["label"]
-
-            allParameters.append(parameterInfo)
+            iterationParametersFeatures.append(parameterDict["features"])
             iterationArrays.append(parameterDict["array"])
 
-        return iterationArrays, allParameters
+        return iterationArrays, iterationParametersFeatures
 
     def parseAttributeString(self, attributeString: str) -> Tuple[str, int, int]:
-        """
-        Parses a string with the structure "attributeName" + "Axis" + "Side".
-
-        Args:
-            attributeString (str): The input string to parse.
-
-        Returns:
-            Tuple[str, int, int]: A tuple containing:
-                - name (str): The attribute name.
-                - axis (int): The axis index (0 for "X", 1 for "Y", 2 for "Z", 3 for "M").
-                - side (int): The side index (0 for "Left", 1 for "Right", None if not present).
-        """
-        # Initialize variables
         side = None
         axis = None
 
-        # Check for "Left" or "Right" at the end of the string
         if attributeString.endswith("Left"):
             side = 0
-            attributeString = attributeString[:-4]  # Remove "Left"
+            attributeString = attributeString[:-4]
         elif attributeString.endswith("Right"):
             side = 1
-            attributeString = attributeString[:-5]  # Remove "Right"
+            attributeString = attributeString[:-5]
 
-        # Check for axis in the last character
         axisMapping = {"X": 0, "Y": 1, "Z": 2, "M": 3}
         if attributeString[-1] in axisMapping:
             axis = axisMapping[attributeString[-1]]
-            attributeString = attributeString[:-1]  # Remove the axis character
+            attributeString = attributeString[:-1]
 
-        # The remaining string is the attribute name
         name = attributeString
-
         return name, axis, side
+    
+    def getIndependentArrays(self) -> List[np.ndarray]:
+        """
+        Returns the independent arrays used for iteration.
 
-    def xName(self) -> str:
-        return self.iterationParametersInfo[0]["name"]
+        Returns:
+            List[np.ndarray]: A list of independent arrays.
+        """
+        return self.iterationArrays
+    
+    def getSimulationName(self) -> str:
+        """
+        Generates a simulation name based on the fixed parameters.
 
-    def yName(self) -> str:
-        return self.iterationParametersInfo[1]["name"]
+        Returns:
+            str: A formatted string representing the simulation name.
+        """
+        # Concatenate the names of the iteration parameters
+        return "_".join([features for features in self.iterationParametersFeatures])
+    
 
-    def xAxis(self) -> int:
-        return self.iterationParametersInfo[0]["axis"]
+    def formatLatexLabel(self, feature: str) -> str:
+        """
+        Formats a LaTeX label for a given feature, including axis and side information if present.
 
-    def yAxis(self) -> int:
-        return self.iterationParametersInfo[1]["axis"]
+        Args:
+            feature (str): The feature name in "features" format.
 
-    def xSide(self) -> int:
-        return self.iterationParametersInfo[0]["side"]
+        Returns:
+            str: The LaTeX-formatted label.
+        """
+        # Check if the feature matches a known parameter
+        if feature in self.LATEX_SYMBOLS:
+            # Simple case: feature is directly in LATEX_SYMBOLS
+            return self.LATEX_SYMBOLS[feature]
+        else:
+            # Complex case: feature includes axis and side (e.g., "zeemanXLeft")
+            baseFeature = ''.join([char for char in feature if not char.isupper() and char not in ["Left", "Right"]])
+            axis = next((i for i, axis in enumerate(["X", "Y", "Z"]) if axis in feature), None)
+            side = next((i for i, side in enumerate(["Left", "Right"]) if side in feature), None)
 
-    def ySide(self) -> int:
-        return self.iterationParametersInfo[1]["side"]
+            if baseFeature in self.LATEX_SYMBOLS and axis is not None and side is not None:
+                latexSymbol = self.LATEX_SYMBOLS[baseFeature]
+                axisLabel = ["X", "Y", "Z"][axis]
+                sideLabel = ["Left", "Right"][side]
+                return rf"{latexSymbol}_{{{axisLabel},{sideLabel}}}"
+            else:
+                # If the feature is not recognized, return it as-is
+                return feature
 
-    def lenX(self) -> int:
-        return len(self.iterationParametersInfo[0])
+    def getLabels(self) -> List[str]:
+        """
+        Generates LaTeX labels for each independent variable based on their features,
+        axis, and side information.
 
-    def lenY(self) -> int:
-        return len(self.iterationParametersInfo[1])
+        Returns:
+            List[str]: A list of LaTeX-formatted labels for the independent variables.
+        """
+        labels = []
+        for features in self.iterationParametersFeatures:
+            labels.append(self.formatLatexLabel(features))
+        return labels
+
+    def getDependentLabels(self) -> List[str]:
+        return [self.formatLatexLabel("current"), self.formatLatexLabel("polarity")]
+
+    def getTitle(self, titleOptions: List[str]) -> Dict[str, str]:
+        """
+        Generates a LaTeX-formatted title string and instructions for filling placeholders.
+
+        Args:
+            titleOptions (List[str]): A list of variable names in "features" format.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the formatted title string and instructions
+                            for filling placeholders with values from dqdObject.
+        """
+        titleParts = []
+        placeholders = []
+
+        for feature in titleOptions:
+            formattedLabel = self.formatLatexLabel(feature)
+
+            # Parse the feature to extract name, axis, and side
+            name, axis, side = self.parseAttributeString(feature)
+
+            if "{}" in formattedLabel:
+                titleParts.append(f"{formattedLabel} = {{}}")
+                placeholders.append(feature)
+            else:
+                titleParts.append(formattedLabel)
+
+        titleStr = ", ".join(titleParts)
+        return {"title": titleStr, "placeholders": placeholders}
 
 
-    def getUpdateFunctions(self, i: int, j: int) -> List[Callable]:
-        xNewValue = self.iterationArrays[0][i]
-        yNewValue = self.iterationArrays[0][j]
-        return [self._getUpdaterFunction(self.xName(), self.xAxis(), self.xSide(), xNewValue),
-                self._getUpdaterFunction(self.yName(), self.yAxis(), self.ySide(), yNewValue)]
+    def getUpdateFunctions(self, *indices: int) -> List[Tuple[Callable, str]]:
+        """
+        Generates updater functions for all iteration parameters based on the provided indices.
+
+        Args:
+            indices (int): Indices corresponding to the current point in the simulation grid.
+
+        Returns:
+            List[Tuple[Callable, str]]: A list of tuples containing updater functions and their corresponding attribute names.
+        """
+        updateFunctions = []
+        for idx, index in enumerate(indices):
+            if index >= len(self.iterationArrays[idx]):
+                raise IndexError(f"Index {index} is out of bounds for array of size {len(self.iterationArrays[idx])}")
+
+            parameterName, parameterAxis, parameterSide = self.parseAttributeString(self.iterationParametersFeatures[idx])
+            newValue = self.iterationArrays[idx][index]
+            updater = self._getUpdaterFunction(
+                parameterName,
+                parameterAxis,
+                parameterSide,
+                newValue
+            )
+            updateFunctions.append((updater, parameterName))
+        return updateFunctions
 
     def _getUpdaterFunction(self, attribute: str, axis: Optional[int], side: Optional[int], newValue):
         if attribute == DQDAttributes.GAMMA.value:
@@ -193,6 +254,15 @@ class AttributeInterpreter:
                 return {attribute: newValue}
 
         return updater
+
+    def lenIterationArrays(self) -> List[int]:
+        """
+        Returns the lengths of all iteration arrays.
+
+        Returns:
+            List[int]: A list of lengths for each iteration array.
+        """
+        return [len(array) for array in self.iterationArrays]
 
     def _adjustGamma(self, completeValue: np.ndarray, newValue: float, side: Optional[int]) -> np.ndarray:
         if side is None:
