@@ -70,6 +70,7 @@ class DoubleQuantumDot:
     def setParameters(self, parameters: Dict[str, Any]) -> None:
         for key, value in parameters.items():
             if hasattr(self, key):
+                self._validateParameters(key, value)  # Validate the parameter
                 attr = getattr(self, key)
                 if isinstance(value, type(attr)):
                     setattr(self, key, value)
@@ -79,13 +80,42 @@ class DoubleQuantumDot:
             else:
                 raise AttributeError(f"'{key}' is not a valid attribute")
 
-            if key == ["gFactor", "magneticField"]:
+            if key in ["gFactor", "magneticField"]:
                 self.zeeman[0] = self.gFactor[0] @ self.magneticField
                 self.zeeman[1] = self.gFactor[1] @ self.magneticField
 
         if parameters is not None or parameters is not {}:
             self.sumCurrent = None
             self.polarity = None
+
+    def _validateParameters(self, key: str, value: Any) -> None:
+        """Validate the parameters being set to ensure correctness."""
+        if key == "gamma":
+            if not isinstance(value, np.ndarray) or value.shape != (2, 1):
+                raise ValueError(
+                    f"'gamma' must be a numpy array with shape (2, 1), got {value.shape if isinstance(value, np.ndarray) else type(value)}")
+        elif key == "zeeman":
+            if not isinstance(value, np.ndarray) or value.shape != (2, 3):
+                raise ValueError(
+                    f"'zeeman' must be a numpy array with shape (2, 3), got {value.shape if isinstance(value, np.ndarray) else type(value)}")
+        elif key == "gFactor":
+            if not isinstance(value, np.ndarray) or value.shape != (2, 3, 3):
+                raise ValueError(
+                    f"'gFactor' must be a numpy array with shape (2, 3, 3), got {value.shape if isinstance(value, np.ndarray) else type(value)}")
+        elif key == "magneticField":
+            if not isinstance(value, np.ndarray) or value.shape != (3,):
+                raise ValueError(
+                    f"'magneticField' must be a numpy array with shape (3,), got {value.shape if isinstance(value, np.ndarray) else type(value)}")
+        elif key == "OME":
+            if not isinstance(value, np.ndarray) or value.shape != (2, 3):
+                raise ValueError(
+                    f"'OME' must be a numpy array with shape (2, 3), got {value.shape if isinstance(value, np.ndarray) else type(value)}")
+        elif key in ["acAmplitude", "chi", "tau", "factorBetweenOMEAndZeeman", "alphaThetaAngle", "alphaPhiAngle",
+                     "detuning", "groundRightEnergy"]:
+            if not isinstance(value, (int, float)):
+                raise ValueError(f"'{key}' must be a numeric value, got {type(value)}")
+            if key in ["acAmplitude", "chi", "tau", "factorBetweenOMEAndZeeman"] and value < 0:
+                raise ValueError(f"'{key}' must be non-negative, got {value}")
 
     def _timeIndependentHamiltonian(self) -> np.ndarray:
         """Calculate the time-independent Hamiltonian as a numpy matrix."""
