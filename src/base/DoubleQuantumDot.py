@@ -1,7 +1,9 @@
-import numpy as np
-from typing import Dict, Any, List, Tuple
-from qutip import *
 from enum import Enum
+from typing import Dict, Any, List, Tuple
+
+import numpy as np
+from qutip import *
+
 
 class DQDAttributes(Enum):
     AC_AMPLITUDE = "acAmplitude"
@@ -16,6 +18,7 @@ class DQDAttributes(Enum):
     ALPHA_PHI_ANGLE = "alphaPhiAngle"
     DETUNING = "detuning"
     GROUND_RIGHT_ENERGY = "groundRightEnergy"
+
 
 class DoubleQuantumDot:
     """Class representing a Double Quantum Dot with defined parameters.
@@ -49,22 +52,23 @@ class DoubleQuantumDot:
 
     def _initializeDefaultParameters(self) -> None:
         """Initialize default parameters for the Double Quantum Dot system."""
+
         self.acAmplitude = 1.2
         self.chi = 0.1
         self.tau = 0.1
         self.groundRightEnergy = 1.0
         self.detuning = 0.0
-        self.gamma = np.zeros((2,1))
+        self.gamma = np.zeros((2, 1))
         self.gamma[0][0] = 0.01
         self.gamma[1][0] = 0.01
-        self.zeeman = np.zeros((2,3))
-        self.gFactor = np.zeros((2,3,3))
+        self.zeeman = np.zeros((2, 3))
+        self.gFactor = np.zeros((2, 3, 3))
         self.gFactor[0] = np.identity(3)
         self.gFactor[1] = np.identity(3)
         self.magneticField = np.zeros((3,))
-        self.OME = np.zeros((2,3))
+        self.OME = np.zeros((2, 3))
         self.factorBetweenOMEAndZeeman = 0.5
-        self.alphaThetaAngle = np.pi/2
+        self.alphaThetaAngle = np.pi / 2
         self.alphaPhiAngle = 0.0
 
     def setParameters(self, parameters: Dict[str, Any]) -> None:
@@ -124,29 +128,29 @@ class DoubleQuantumDot:
         groundLeftEnergy = self.groundRightEnergy - self.detuning
         tau0 = self.tau - self.tau * self.chi
         tauSFModule = self.tau * self.chi
-        thetaAngle= self.alphaThetaAngle
+        thetaAngle = self.alphaThetaAngle
         phiAngle = self.alphaPhiAngle
-        tauXSF = tauSFModule* np.cos(thetaAngle)*np.cos(phiAngle)
-        tauYSF = tauSFModule * np.sin(thetaAngle)*np.cos(phiAngle)
-        tauZSF = tauSFModule*np.sin(phiAngle)
+        tauXSF = tauSFModule * np.cos(thetaAngle) * np.cos(phiAngle)
+        tauYSF = tauSFModule * np.sin(thetaAngle) * np.cos(phiAngle)
+        tauZSF = tauSFModule * np.sin(phiAngle)
 
-        H0[1, 1] = groundLeftEnergy + self.zeeman[0][2]/2
-        H0[1, 2] = self.zeeman[0][0] / 2 - 1j * self.zeeman[0][1]/ 2
-        H0[1, 3] = -tau0 -1j*tauZSF
-        H0[1, 4] = -tauYSF - 1j*tauXSF
+        H0[1, 1] = groundLeftEnergy + self.zeeman[0][2] / 2
+        H0[1, 2] = self.zeeman[0][0] / 2 - 1j * self.zeeman[0][1] / 2
+        H0[1, 3] = -tau0 - 1j * tauZSF
+        H0[1, 4] = -tauYSF - 1j * tauXSF
 
-        H0[2, 1] = self.zeeman[0][0] / 2 + 1j * self.zeeman[0][1]/ 2
+        H0[2, 1] = self.zeeman[0][0] / 2 + 1j * self.zeeman[0][1] / 2
         H0[2, 2] = groundLeftEnergy - self.zeeman[0][2] / 2
-        H0[2, 3] = tauYSF - 1j*tauXSF
-        H0[2, 4] = -tau0 + 1j*tauZSF
+        H0[2, 3] = tauYSF - 1j * tauXSF
+        H0[2, 4] = -tau0 + 1j * tauZSF
 
-        H0[3, 1] = -tau0+1j*tauZSF
-        H0[3, 2] = tauYSF +1j*tauXSF
+        H0[3, 1] = -tau0 + 1j * tauZSF
+        H0[3, 2] = tauYSF + 1j * tauXSF
         H0[3, 3] = self.groundRightEnergy + self.zeeman[1][2] / 2
         H0[3, 4] = self.zeeman[1][0] / 2 - 1j * self.zeeman[1][1] / 2
 
-        H0[4, 1] = -tauYSF + 1j*tauXSF
-        H0[4, 2] = -tau0-1j*tauZSF
+        H0[4, 1] = -tauYSF + 1j * tauXSF
+        H0[4, 2] = -tau0 - 1j * tauZSF
         H0[4, 3] = self.zeeman[1][0] / 2 + 1j * self.zeeman[1][1] / 2
         H0[4, 4] = self.groundRightEnergy - self.zeeman[1][2] / 2
 
@@ -160,12 +164,12 @@ class DoubleQuantumDot:
         # As the SOC vector is directed into axis y, the Ey does not contribute to the OME terms
         H1[1, 1] = self.acAmplitude + self.OME[0][2] / 2
         H1[2, 2] = self.acAmplitude - self.OME[0][2] / 2
-        H1[1, 2] = self.OME[0][0] / 2 - 1j*self.OME[0][1] / 2
-        H1[2, 1] = self.OME[0][0] / 2 + 1j*self.OME[0][1] / 2
+        H1[1, 2] = self.OME[0][0] / 2 - 1j * self.OME[0][1] / 2
+        H1[2, 1] = self.OME[0][0] / 2 + 1j * self.OME[0][1] / 2
         H1[3, 3] = self.OME[1][2] / 2
         H1[4, 4] = -self.OME[1][2] / 2
-        H1[3, 4] = self.OME[1][0] / 2 - 1j*self.OME[1][1]/ 2
-        H1[4, 3] = self.OME[1][0] / 2 + 1j*self.OME[1][1] / 2
+        H1[3, 4] = self.OME[1][0] / 2 - 1j * self.OME[1][1] / 2
+        H1[4, 3] = self.OME[1][0] / 2 + 1j * self.OME[1][1] / 2
 
         return H1
 
@@ -174,17 +178,17 @@ class DoubleQuantumDot:
             The OME terms are supposed to be factor*(-Zz)*alphay*sigmax, factor*(Zz)*alphax*sigmay, factor*(-Zy*alphax+Zx*alphay)*sigmaz
         """
 
-        alphax = self.factorBetweenOMEAndZeeman*np.cos(self.alphaThetaAngle)*np.cos(self.alphaPhiAngle)
-        alphay = self.factorBetweenOMEAndZeeman*np.sin(self.alphaThetaAngle)*np.cos(self.alphaPhiAngle)
-        alphaz = self.factorBetweenOMEAndZeeman*np.sin(self.alphaPhiAngle)
+        alphax = self.factorBetweenOMEAndZeeman * np.cos(self.alphaThetaAngle) * np.cos(self.alphaPhiAngle)
+        alphay = self.factorBetweenOMEAndZeeman * np.sin(self.alphaThetaAngle) * np.cos(self.alphaPhiAngle)
+        alphaz = self.factorBetweenOMEAndZeeman * np.sin(self.alphaPhiAngle)
 
-        self.OME[0][0] = -alphay *self.zeeman[0][2] +alphaz*self.zeeman[0][1]
-        self.OME[0][1] = alphax * self.zeeman[0][2] -alphaz*self.zeeman[0][0]
-        self.OME[0][2] = alphay * self.zeeman[0][0] -alphax * self.zeeman[0][1]
+        self.OME[0][0] = -alphay * self.zeeman[0][2] + alphaz * self.zeeman[0][1]
+        self.OME[0][1] = alphax * self.zeeman[0][2] - alphaz * self.zeeman[0][0]
+        self.OME[0][2] = alphay * self.zeeman[0][0] - alphax * self.zeeman[0][1]
 
         self.OME[1][0] = -alphay * self.zeeman[1][2] + alphaz * self.zeeman[1][1]
         self.OME[1][1] = alphax * self.zeeman[1][2] - alphaz * self.zeeman[1][0]
-        self.OME[1][2] = alphay * self.zeeman[1][0] -alphax * self.zeeman[1][1]
+        self.OME[1][2] = alphay * self.zeeman[1][0] - alphax * self.zeeman[1][1]
 
     def _collapseOperators(self) -> List[np.ndarray]:
         """Generate the collapse operators for the system."""
@@ -213,7 +217,7 @@ class DoubleQuantumDot:
 
         return chargeObservables
 
-    def computeCurrent(self, iterationsPerPeriod = 20) -> None:
+    def computeCurrent(self, iterationsPerPeriod=20) -> None:
         """Run the simulation for the Double Quantum Dot system."""
         T = 2 * np.pi
         H0 = Qobj(self._timeIndependentHamiltonian())
@@ -239,7 +243,7 @@ class DoubleQuantumDot:
         self.polarity = (spinUp - spinDown) / (spinUp + spinDown)
         return None
 
-    def getCurrent(self,  iterationsPerPeriod = 20) -> Tuple[float, float]:
+    def getCurrent(self, iterationsPerPeriod=20) -> Tuple[float, float]:
         if self.sumCurrent is None or self.polarity is None:
             self.computeCurrent(iterationsPerPeriod)
         return self.sumCurrent, self.polarity

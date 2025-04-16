@@ -1,7 +1,9 @@
-from typing import Dict, Any, Tuple, List, Optional, Callable
 import re
-from src.base.DoubleQuantumDot import DQDAttributes
+from typing import Dict, Any, Tuple, List, Optional, Callable
+
 import numpy as np
+
+from src.base.DoubleQuantumDot import DQDAttributes
 
 
 class AttributeInterpreter:
@@ -86,7 +88,8 @@ class AttributeInterpreter:
 
         return adjustedParams
 
-    def processIterationParameters(self, iterationParameters: List[Dict[str, Any]]) -> Tuple[List[np.ndarray], List[str]]:
+    def processIterationParameters(self, iterationParameters: List[Dict[str, Any]]) -> Tuple[
+        List[np.ndarray], List[str]]:
         iterationArrays = []
         iterationParametersFeatures = []
 
@@ -114,7 +117,7 @@ class AttributeInterpreter:
 
         name = attributeString
         return name, axis, side
-    
+
     def getIndependentArrays(self) -> List[np.ndarray]:
         """
         Returns the independent arrays used for iteration.
@@ -123,7 +126,7 @@ class AttributeInterpreter:
             List[np.ndarray]: A list of independent arrays.
         """
         return self.iterationArrays
-    
+
     def getSimulationName(self) -> str:
         """
         Generates a simulation name based on the fixed parameters.
@@ -133,7 +136,6 @@ class AttributeInterpreter:
         """
         # Concatenate the names of the iteration parameters
         return "_".join([features for features in self.iterationParametersFeatures])
-    
 
     def formatLatexLabel(self, feature: str) -> str:
         """
@@ -197,9 +199,6 @@ class AttributeInterpreter:
         for feature in titleOptions:
             formattedLabel = self.formatLatexLabel(feature)
 
-            # Parse the feature to extract name, axis, and side
-            name, axis, side = self.parseAttributeString(feature)
-
             if "{}" in formattedLabel:
                 titleParts.append(f"{formattedLabel} = {{}}")
                 placeholders.append(feature)
@@ -208,7 +207,6 @@ class AttributeInterpreter:
 
         titleStr = ", ".join(titleParts)
         return {"title": titleStr, "placeholders": placeholders}
-
 
     def getUpdateFunctions(self, *indices: int) -> List[Tuple[Callable, str]]:
         """
@@ -225,7 +223,8 @@ class AttributeInterpreter:
             if index >= len(self.iterationArrays[idx]):
                 raise IndexError(f"Index {index} is out of bounds for array of size {len(self.iterationArrays[idx])}")
 
-            parameterName, parameterAxis, parameterSide = self.parseAttributeString(self.iterationParametersFeatures[idx])
+            parameterName, parameterAxis, parameterSide = self.parseAttributeString(
+                self.iterationParametersFeatures[idx])
             newValue = self.iterationArrays[idx][index]
             updater = self._getUpdaterFunction(
                 parameterName,

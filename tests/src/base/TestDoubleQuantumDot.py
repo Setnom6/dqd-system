@@ -1,10 +1,14 @@
-import pytest
-import numpy as np
 from unittest.mock import patch
+
+import numpy as np
+import pytest
+
 from src.base.DoubleQuantumDot import DoubleQuantumDot
+
 
 class TestDoubleQuantumDot:
     # Default DoubleQuantumDot instance for checks
+
     AC_AMPLITUDE = 2.0
     GAMMA = np.array([[0.5], [0.74]])
     MAGNETICFIELD = np.array([1.0, 2.0, 3.0])
@@ -128,9 +132,9 @@ class TestDoubleQuantumDot:
     def testComputeAndGetCurrent(self):
         dqd = DoubleQuantumDot()
         with patch.object(dqd, '_timeIndependentHamiltonian', wraps=dqd._timeIndependentHamiltonian) as mock_h0, \
-             patch.object(dqd, '_oscillatoryHamiltonian', wraps=dqd._oscillatoryHamiltonian) as mock_h1, \
-             patch.object(dqd, '_collapseOperators', wraps=dqd._collapseOperators) as mock_collapse, \
-             patch.object(dqd, '_getChargeObservables', wraps=dqd._getChargeObservables) as mock_observables:
+                patch.object(dqd, '_oscillatoryHamiltonian', wraps=dqd._oscillatoryHamiltonian) as mock_h1, \
+                patch.object(dqd, '_collapseOperators', wraps=dqd._collapseOperators) as mock_collapse, \
+                patch.object(dqd, '_getChargeObservables', wraps=dqd._getChargeObservables) as mock_observables:
             dqd.computeCurrent(iterationsPerPeriod=10)
             mock_h0.assert_called_once()  # Ensure _timeIndependentHamiltonian is called
             mock_h1.assert_called_once()  # Ensure _oscillatoryHamiltonian is called
@@ -152,7 +156,6 @@ class TestDoubleQuantumDot:
         dqd = DoubleQuantumDot()
         assert dqd.getAttributeValue("acAmplitude") == 1.2
         assert np.all(dqd.getAttributeValue("gamma") == np.array([[0.01], [0.01]]))
-
 
 
 if __name__ == "__main__":

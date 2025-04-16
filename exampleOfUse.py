@@ -1,6 +1,8 @@
-from src.DQDSystem import DQDSystem
-import numpy as np
 from time import time
+
+import numpy as np
+
+from src.DQDSystem import DQDSystem
 from src.base.DoubleQuantumDot import DQDAttributes
 
 # Inicia el temporizador
@@ -8,7 +10,7 @@ timeStart = time()
 
 # Define los arrays de iteración
 xArray = np.linspace(-4, 4, 100)  # Para detuning
-zArray = np.linspace(-2, 2, 80)   # Para zeemanZLeft
+zArray = np.linspace(-2, 2, 80)  # Para zeemanZLeft
 
 # Define los parámetros de iteración
 iterationParameters = [
@@ -46,12 +48,10 @@ titleOptions = []
 dqdSystem.simulateAndPlot(
     title=titleOptions,
     options=plotOptions,
-    saveData=True,       # Guarda los datos como .npz
-    saveFigure=True      # Guarda la figura como .pdf
+    saveData=True,  # Guarda los datos como .npz
+    saveFigure=True  # Guarda la figura como .pdf
 )
 
 # Calcula y muestra el tiempo total de ejecución
 timeEnd = time() - timeStart
 print("Total time: {:.2f} seconds".format(timeEnd))
-
-

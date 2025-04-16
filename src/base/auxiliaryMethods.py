@@ -1,5 +1,6 @@
 from datetime import datetime
 
+
 def getTimestampedFilename() -> str:
     """
     Generates a filename based on the current date and time.
@@ -10,6 +11,7 @@ def getTimestampedFilename() -> str:
     Returns:
         str: A string representing the filename with a timestamp.
     """
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{timestamp}"
 

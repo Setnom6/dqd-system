@@ -1,16 +1,19 @@
-import numpy as np
-from typing import Dict, Any, List, Tuple
-from src.base.AttributeInterpreter import AttributeInterpreter
-from src.base.DoubleQuantumDot import DoubleQuantumDot
-from src.base.SimulationManager import SimulationManager
-from src.base.PlotsManager import PlotsManager
 import json
 import os
+from typing import Dict, Any, List, Tuple
+
+import numpy as np
+
+from src.base.AttributeInterpreter import AttributeInterpreter
+from src.base.DoubleQuantumDot import DoubleQuantumDot
+from src.base.PlotsManager import PlotsManager
+from src.base.SimulationManager import SimulationManager
 from src.base.auxiliaryMethods import getTimestampedFilename
 
 
 class DQDSystem:
-    def __init__(self, fixedParameters: Dict[str, Any], iterationParameters: List[Dict[str, Any]], folder: str = ".") -> None:
+    def __init__(self, fixedParameters: Dict[str, Any], iterationParameters: List[Dict[str, Any]],
+                 folder: str = ".") -> None:
         """
         Initializes the DQDSystem with fixed parameters and iteration parameters.
 
@@ -18,6 +21,7 @@ class DQDSystem:
             fixedParameters (Dict[str, Any]): Fixed parameters for the Double Quantum Dot system.
             iterationParameters (List[Dict[str, Any]]): Parameters to iterate over during the simulation.
         """
+
         self.attributeInterpreter = AttributeInterpreter(fixedParameters, iterationParameters)
         self.dqdObject = self.createDqdObject()
         self.dependentArrays = None
@@ -81,7 +85,7 @@ class DQDSystem:
 
         # Run the simulation and return the results
         return simulationManager.runSimulation()
-    
+
     def fillTitle(self, titleOptions: Dict[str, Any]) -> str:
         """
         Fills the title string with the appropriate values from the DQD object.
@@ -115,14 +119,13 @@ class DQDSystem:
 
         # Format the title string with the retrieved values
         return title_str.format(*values)
-    
 
     def simulateAndPlot(
-        self,
-        title: List[str],
-        options: Dict[str, Any],
-        saveData: bool = False,
-        saveFigure: bool = False
+            self,
+            title: List[str],
+            options: Dict[str, Any],
+            saveData: bool = False,
+            saveFigure: bool = False
     ) -> None:
         """
         Runs the simulation (if not already done), plots the results, and optionally saves the data and figure.
@@ -185,5 +188,3 @@ class DQDSystem:
         os.makedirs(plotsFolder, exist_ok=True)
         figureFilename = os.path.join(plotsFolder, f"{baseFilename}.pdf")
         plotsManager.saveFig(figureFilename)
-
-

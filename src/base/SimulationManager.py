@@ -1,14 +1,15 @@
-from joblib import Parallel, delayed
-import numpy as np
 from typing import Callable, List, Tuple, Any
+
+import numpy as np
+from joblib import Parallel, delayed
 
 
 class SimulationManager:
     def __init__(
-        self,
-        lenArrays: List[int],
-        updateParameters: Callable[..., None],
-        simulatePoint: Callable[..., Tuple[Any, ...]]
+            self,
+            lenArrays: List[int],
+            updateParameters: Callable[..., None],
+            simulatePoint: Callable[..., Tuple[Any, ...]]
     ):
         """
         Args:
@@ -16,6 +17,7 @@ class SimulationManager:
             updateParameters (Callable): Function to update parameters based on indices.
             simulatePoint (Callable): Function to simulate a point, returning a tuple of results.
         """
+
         self.lenArrays = lenArrays
         self.updateParameters = updateParameters
         self.simulatePoint = simulatePoint

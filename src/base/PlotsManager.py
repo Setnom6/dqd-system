@@ -1,10 +1,12 @@
 from typing import List, Dict, Any
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 class PlotsManager:
-    def __init__(self, independentArrays: List[np.ndarray], dependentArrays: List[np.ndarray], plottingInfo: Dict[str, Any]):
+    def __init__(self, independentArrays: List[np.ndarray], dependentArrays: List[np.ndarray],
+                 plottingInfo: Dict[str, Any]):
         self.independentArrays = independentArrays
         self.dependentArrays = dependentArrays
         self.plottingInfo = plottingInfo
@@ -14,7 +16,6 @@ class PlotsManager:
         options = self.plottingInfo.get("options", {})
         applyToAll = options.get("applyToAll", False)
 
-        # Grid se aplica siempre a todos
         if options.get("grid", False):
             ax.grid(True)
 
