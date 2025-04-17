@@ -42,6 +42,9 @@ class PlotsManager:
         indices = [plotOnly] if plotOnly is not None else list(range(numDependentArrays))
         applyToAll = options.get("applyToAll", False)
 
+        # Retrieve colormap option
+        globalColormap = options.get("colormap", None)
+
         if numIndependentArrays == 1:
             self.fig, axes = plt.subplots(1, len(indices), figsize=(5 * len(indices), 4), sharey=True)
             if len(indices) == 1:
@@ -83,7 +86,9 @@ class PlotsManager:
                     background = gaussian_filter(Z, sigma=10)
                     Z = np.maximum(Z - background, 0)
 
-                colormap = 'viridis' if i == 0 else 'RdBu_r'
+                # Determine colormap
+                colormap = globalColormap if globalColormap else ('viridis' if i == 0 else 'RdBu_r')
+
                 if logScale and (applyToAll or i == 0):
                     from matplotlib.colors import LogNorm
                     norm = LogNorm(vmin=max(np.min(Z[Z > 0]), 1e-12), vmax=np.max(Z))
@@ -94,9 +99,9 @@ class PlotsManager:
                 vmax = min(colorBarMax, np.max(Z)) if colorBarMax is not None and (applyToAll or i == 0) else None
 
                 if norm is not None:
-                    c = ax.pcolormesh(X, Y, Z, shading='auto', cmap=colormap, norm=norm)
+                    c = ax.pcolormesh(X, Y, Z, shading='auto', cmap=colormap, norm=norm, rasterized=True)
                 else:
-                    c = ax.pcolormesh(X, Y, Z, shading='auto', cmap=colormap, vmin=vmin, vmax=vmax)
+                    c = ax.pcolormesh(X, Y, Z, shading='auto', cmap=colormap, vmin=vmin, vmax=vmax, rasterized=True)
 
                 self.fig.colorbar(c, ax=ax, label=self.plottingInfo["labels"][1][i])
                 ax.set_xlabel(self.plottingInfo["labels"][0][0])

@@ -64,6 +64,10 @@ class AttributeInterpreter:
     def __init__(self, fixedParameters: Dict[str, Any], iterationParameters: List[Dict[str, Any]]):
         self.fixedParameters = self._processFixedParameters(fixedParameters)
         self.iterationArrays, self.iterationParameterFeatures = self._processIterationParameters(iterationParameters)
+        self._iterationParametersOriginalFormat = iterationParameters
+
+    def returnOriginalterationParameters(self) -> List[Dict[str, Any]]:
+        return self._iterationParametersOriginalFormat
 
     def _processFixedParameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         fixedParamsWithoutLeftRight = self._processLeftRightAttributes(parameters)

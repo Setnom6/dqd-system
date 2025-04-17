@@ -42,6 +42,16 @@ class TestAttributeInterpreter(unittest.TestCase):
         self.assertTrue(np.all(self.interpreter.iterationArrays[0] == np.array([0.1, 0.2, 0.3])))
         self.assertTrue(np.all(self.interpreter.iterationArrays[1] == np.array([1.0, 2.0, 3.0])))
 
+    def testReturnOriginalIterationParameters(self):
+        # Test that the original iteration parameters are returned correctly
+        originalParams = self.interpreter.returnOriginalterationParameters()
+
+        # Check that the returned parameters match the original ones
+        self.assertEqual(len(originalParams), len(self.iterParams))
+        for original, expected in zip(originalParams, self.iterParams):
+            self.assertEqual(original["features"], expected["features"])
+            self.assertTrue(np.all(original["array"] == expected["array"]))
+
     def testGetIterableAttributes(self):
         # Test retrieval of iterable attributes
         iterables = self.interpreter.getIndependentArrays()

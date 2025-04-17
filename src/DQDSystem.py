@@ -126,6 +126,12 @@ class DQDSystem:
         # Format the title string with the retrieved values
         return title_str.format(*values)
 
+    def computeDependentArrays(self) -> None:
+        # Check if the simulation has already been run
+        if self.dependentArrays is None:
+            # Run the simulation and store the results
+            self.dependentArrays = self.runSimulation()
+
     def simulateAndPlot(
             self,
             title: List[str],
@@ -145,10 +151,7 @@ class DQDSystem:
 
         title_str = self.fillTitle(self.attributeInterpreter.getTitle(title))
 
-        # Check if the simulation has already been run
-        if self.dependentArrays is None:
-            # Run the simulation and store the results
-            self.dependentArrays = self.runSimulation()
+        self.computeDependentArrays()
 
         # Retrieve the independent arrays from AttributeInterpreter
         independentArrays = self.attributeInterpreter.getIndependentArrays()
@@ -166,6 +169,72 @@ class DQDSystem:
 
         # Generate a common base filename
         baseFilename = getTimestampedFilename()
+
+        if saveData:
+            self.saveData(title, options, independentArrays, baseFilename)
+
+        if saveFigure:
+            self.saveFigure(plotsManager, baseFilename)
+
+    def compareSimulationsAndPlot(self,
+                                  fixedParametersForOtherSystem: Dict[str, Any],
+                                  iterationParametersForOtherSystem: List[Dict[str, Any]],
+                                  title: List[str],
+                                  options: Dict[str, Any],
+                                  saveData: bool = False,
+                                  saveFigure: bool = False):
+
+        title_str = self.fillTitle(self.attributeInterpreter.getTitle(title))
+        otherDQDSystem = DQDSystem(fixedParametersForOtherSystem,
+                                   iterationParametersForOtherSystem)
+
+        # Compute dependent arrays for both systems
+        otherDQDSystem.computeDependentArrays()
+        self.computeDependentArrays()
+
+        # Check if the shapes of dependent arrays are compatible
+        if len(self.dependentArrays) != len(otherDQDSystem.dependentArrays):
+            raise ValueError("The number of dependent arrays in both systems must be the same.")
+
+        for idx, (selfArray, otherArray) in enumerate(zip(self.dependentArrays, otherDQDSystem.dependentArrays)):
+            if selfArray.shape != otherArray.shape:
+                raise ValueError(f"Shape mismatch in dependent array at index {idx}: "
+                                 f"{selfArray.shape} vs {otherArray.shape}")
+
+        # Subtract dependent arrays
+        self.dependentArrays = [
+            selfArray - otherArray
+            for selfArray, otherArray in zip(self.dependentArrays, otherDQDSystem.dependentArrays)
+        ]
+
+        # Update labels for independent arrays
+        independentLabels = [
+            f"{self.attributeInterpreter.getLabels()[idx]}-{otherDQDSystem.attributeInterpreter.getLabels()[idx]}"
+            for idx in range(len(self.attributeInterpreter.getLabels()))
+        ]
+
+        # Dependent labels remain the same
+        dependentLabels = self.attributeInterpreter.getDependentLabels()
+
+        # Retrieve the independent arrays from AttributeInterpreter
+        independentArrays = self.attributeInterpreter.getIndependentArrays()
+
+        # Divergent map
+        options["colormap"] = 'RdBu_r'
+
+        # Prepare plotting information
+        plottingInfo = {
+            "labels": [independentLabels, dependentLabels],
+            "title": title_str,
+            "options": options
+        }
+
+        # Plot the simulation results
+        plotsManager = PlotsManager(independentArrays, self.dependentArrays, plottingInfo)
+        plotsManager.plotSimulation()
+
+        # Generate a common base filename
+        baseFilename = "_comparison_" + getTimestampedFilename()
 
         if saveData:
             self.saveData(title, options, independentArrays, baseFilename)
