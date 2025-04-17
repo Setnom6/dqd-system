@@ -9,13 +9,13 @@ from src.base.DoubleQuantumDot import DQDAttributes
 timeStart = time()
 
 # Define los arrays de iteración
-xArray = np.linspace(-4, 4, 100)  # Para detuning
-zArray = np.linspace(-2, 2, 80)  # Para zeemanZLeft
+xArray = np.linspace(-4, 4, 30)  # Para detuning
+zArray = np.linspace(-2, 2, 20)  # Para zeemanZLeft
 
 # Define los parámetros de iteración
 iterationParameters = [
     {"array": xArray, "features": DQDAttributes.DETUNING.value},
-    {"array": zArray, "features": DQDAttributes.ZEEMAN.value + "Z"},
+    {"array": zArray, "features": DQDAttributes.ZEEMAN.value + "ZLeft"},
 ]
 
 # Permite seleccionar si usar uno o ambos arrays
@@ -33,16 +33,16 @@ else:
 # Define las opciones de ploteo
 plotOptions = {
     "grid": True,
-    "applyToAll": True,
+    "applyToAll": False,
     "colorBarMin": 0.02,
     "colorBarMax": 0.35,
     "plotOnly": None,
     "logColorBar": True,
-    "gaussianFilter": True
+    "gaussianFilter": False
 }
 
 # Opcional: título personalizado como lista de strings para concatenar
-titleOptions = []
+titleOptions = [DQDAttributes.MAGNETIC_FIELD.value + "M"]
 
 # Ejecuta la simulación y genera los gráficos
 dqdSystem.simulateAndPlot(

@@ -18,6 +18,8 @@ class DQDAttributes(Enum):
     ALPHA_PHI_ANGLE = "alphaPhiAngle"
     DETUNING = "detuning"
     GROUND_RIGHT_ENERGY = "groundRightEnergy"
+    SUM_CURRENT = "sumCurrent"
+    POLARITY = "polarity"
 
 
 class DoubleQuantumDot:

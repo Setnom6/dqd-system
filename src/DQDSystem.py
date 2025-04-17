@@ -109,13 +109,19 @@ class DQDSystem:
 
             # Handle axis and side if applicable
             if axis is not None and side is not None:
-                value = value[side, axis]
+                if axis == 3:
+                    value = np.linalg.norm(value[side])
+                else:
+                    value = value[side, axis]
             elif axis is not None:
-                value = value[axis]
+                if axis == 3:
+                    value = np.linalg.norm(value)
+                else:
+                    value = value[axis]
             elif side is not None:
                 value = value[side]
 
-            values.append(value)
+            values.append(str(value))
 
         # Format the title string with the retrieved values
         return title_str.format(*values)
