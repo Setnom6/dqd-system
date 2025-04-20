@@ -261,6 +261,14 @@ class DoubleQuantumDot:
         }
         return dictToReturn
 
+    def fromDict(self, dictToSet: Dict[str, Any]) -> None:
+        for key, value in dictToSet.items():
+            if isinstance(value, list):
+                dictToSet[key] = np.array(value)
+            else:
+                continue
+        self.setParameters(dictToSet)
+
     def getAttributeValue(self, key: str):
         """
         Get the value of an attribute by its key.

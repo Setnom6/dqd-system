@@ -10,7 +10,7 @@ from src.base.auxiliaryMethods import formatComputationTime
 timeStart = time()
 
 # Define los arrays de iteración
-xArray = np.linspace(-3, 3, 200)  # Para zeeman
+xArray = np.linspace(-3, 3, 50)  # Para zeeman
 
 # Define los parámetros de iteración
 iterationParameters = [
@@ -42,9 +42,13 @@ iterationParametersForCompare = [
     {"array": xArray, "features": DQDAttributes.ZEEMAN.value + "Z"},
 ]
 # Ejecuta la simulación y genera los gráficos
+
+otherSystemDict = {
+    "fixedParameters": fixedParameters,
+    "iterationParameters": iterationParametersForCompare
+}
 dqdSystem.compareSimulationsAndPlot(
-    fixedParametersForOtherSystem=fixedParameters,
-    iterationParametersForOtherSystem=iterationParametersForCompare,
+    otherSystemDict=otherSystemDict,
     title=titleOptions,
     options=plotOptions,
     saveData=True,  # Guarda los datos como .npz
@@ -53,4 +57,4 @@ dqdSystem.compareSimulationsAndPlot(
 
 # Calcula y muestra el tiempo total de ejecución
 timeEnd = time() - timeStart
-print("Total time: {:.2f} seconds".format(formatComputationTime(timeEnd)))
+print("Total time: {}".format(formatComputationTime(timeEnd)))

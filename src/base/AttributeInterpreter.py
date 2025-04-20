@@ -127,7 +127,10 @@ class AttributeInterpreter:
 
         for parameterDict in iterationParameters:
             iterationParameterFeatures.append(parameterDict["features"])
-            iterationArrays.append(parameterDict["array"])
+            if "array" in parameterDict:
+                iterationArrays.append(parameterDict["array"])
+            else:
+                iterationArrays.append(np.array([]))
 
         return iterationArrays, iterationParameterFeatures
 

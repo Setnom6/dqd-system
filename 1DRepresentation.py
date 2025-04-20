@@ -4,6 +4,7 @@ import numpy as np
 
 from src.DQDSystem import DQDSystem
 from src.base.DoubleQuantumDot import DQDAttributes
+from src.base.auxiliaryMethods import formatComputationTime
 
 # Inicia el temporizador
 timeStart = time()
@@ -45,4 +46,4 @@ dqdSystem.simulateAndPlot(
 
 # Calcula y muestra el tiempo total de ejecución
 timeEnd = time() - timeStart
-print("Total time: {:.2f} seconds".format(timeEnd))
+print("Total time: {}".format(formatComputationTime(timeEnd)))

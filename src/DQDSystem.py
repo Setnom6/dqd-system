@@ -8,10 +8,36 @@ from src.base.AttributeInterpreter import AttributeInterpreter
 from src.base.DoubleQuantumDot import DoubleQuantumDot
 from src.base.PlotsManager import PlotsManager
 from src.base.SimulationManager import SimulationManager
-from src.base.auxiliaryMethods import getTimestampedFilename
+from src.base.auxiliaryMethods import getTimestampedFilename, getLatestSimulationFile, validateSimulationFile, \
+    getLatestComparisonFile, validateComparisonFile
 
 
 class DQDSystem:
+
+    @classmethod
+    def createDQDSystemFromPrecomputedData(cls, iterationParameters: List[Dict[str, Any]],
+                                           folder: str = ".", date="",
+                                           otherSystemDict: Dict[str, Any] = None) -> "DQDSystem":
+        """
+        Creates a DQDSystem instance from precomputed data.
+
+        Args:
+            iterationParameters (List[Dict[str, Any]]): Parameters to iterate over during the simulation.
+            folder (str): The folder where the precomputed data is stored.
+
+        Returns:
+
+            DQDSystem: An instance of the DQDSystem class.
+        """
+
+        # Create a DQDSystem instance with empty fixed parameters
+        dqdSystem = cls({}, iterationParameters, folder)
+
+        # Load the data from the specified folder
+        dqdSystem.loadData(date, otherSystemDict)
+
+        return dqdSystem
+
     def __init__(self, fixedParameters: Dict[str, Any], iterationParameters: List[Dict[str, Any]],
                  folder: str = ".") -> None:
         """
@@ -27,6 +53,9 @@ class DQDSystem:
         self.dependentArrays = None
         self.simulationName = self.attributeInterpreter.getSimulationName()
         self.folder = os.path.join(folder, "results", self.simulationName)
+        self.title = ""
+        self.plotOptions = {}
+        self.otherToCompare = {}
 
         # Create the folder if it doesn't exist
         os.makedirs(self.folder, exist_ok=True)
@@ -56,6 +85,20 @@ class DQDSystem:
             currentValue = self.dqdObject.getAttributeValue(attributeName)
             updatedParams = updater(currentValue)
             self.dqdObject.setParameters(updatedParams)
+
+        self.dependentArrays = []
+
+    def updateAttributeInterpreterParameters(self, fixedParameters: Dict[str, Any],
+                                             iterationParameters: List[Dict[str, Any]]) -> None:
+        """
+        Updates the parameters of the attributeInterpreter and resets dependentArrays.
+
+        Args:
+            fixedParameters (Dict[str, Any]): The new fixed parameters for the attributeInterpreter.
+            iterationParameters (List[Dict[str, Any]]): The new iteration parameters for the attributeInterpreter.
+        """
+        self.attributeInterpreter = AttributeInterpreter(fixedParameters, iterationParameters)
+        self.dependentArrays = []
 
     def simulatePoint(self) -> Tuple[float, ...]:
         """
@@ -134,8 +177,8 @@ class DQDSystem:
 
     def simulateAndPlot(
             self,
-            title: List[str],
-            options: Dict[str, Any],
+            title: List[str] = None,
+            options: Dict[str, Any] = None,
             saveData: bool = False,
             saveFigure: bool = False
     ) -> None:
@@ -149,7 +192,13 @@ class DQDSystem:
             saveFigure (bool): Whether to save the plot figure to a file.
         """
 
+        if title is None:
+            title = self.title
+
         title_str = self.fillTitle(self.attributeInterpreter.getTitle(title))
+
+        if options is None:
+            options = self.plotOptions
 
         self.computeDependentArrays()
 
@@ -177,35 +226,48 @@ class DQDSystem:
             self.saveFigure(plotsManager, baseFilename)
 
     def compareSimulationsAndPlot(self,
-                                  fixedParametersForOtherSystem: Dict[str, Any],
-                                  iterationParametersForOtherSystem: List[Dict[str, Any]],
-                                  title: List[str],
-                                  options: Dict[str, Any],
+                                  otherSystemDict: Dict[str, Any] = None,
+                                  title: List[str] = None,
+                                  options: Dict[str, Any] = None,
                                   saveData: bool = False,
                                   saveFigure: bool = False):
+
+        if title is None:
+            title = self.title
+
+        if options is None:
+            options = self.plotOptions
+
+        if otherSystemDict is None:
+            otherSystemDict = self.otherToCompare
+
+        fixedParametersForOtherSystem = otherSystemDict["fixedParameters"]
+        iterationParametersForOtherSystem = otherSystemDict["iterationParameters"]
 
         title_str = self.fillTitle(self.attributeInterpreter.getTitle(title))
         otherDQDSystem = DQDSystem(fixedParametersForOtherSystem,
                                    iterationParametersForOtherSystem)
 
-        # Compute dependent arrays for both systems
-        otherDQDSystem.computeDependentArrays()
-        self.computeDependentArrays()
+        # If self.dependentArrays is already calculated, skip the subtraction
+        if not self.dependentArrays:
+            # Compute dependent arrays for both systems
+            otherDQDSystem.computeDependentArrays()
+            self.computeDependentArrays()
 
-        # Check if the shapes of dependent arrays are compatible
-        if len(self.dependentArrays) != len(otherDQDSystem.dependentArrays):
-            raise ValueError("The number of dependent arrays in both systems must be the same.")
+            # Check if the shapes of dependent arrays are compatible
+            if len(self.dependentArrays) != len(otherDQDSystem.dependentArrays):
+                raise ValueError("The number of dependent arrays in both systems must be the same.")
 
-        for idx, (selfArray, otherArray) in enumerate(zip(self.dependentArrays, otherDQDSystem.dependentArrays)):
-            if selfArray.shape != otherArray.shape:
-                raise ValueError(f"Shape mismatch in dependent array at index {idx}: "
-                                 f"{selfArray.shape} vs {otherArray.shape}")
+            for idx, (selfArray, otherArray) in enumerate(zip(self.dependentArrays, otherDQDSystem.dependentArrays)):
+                if selfArray.shape != otherArray.shape:
+                    raise ValueError(f"Shape mismatch in dependent array at index {idx}: "
+                                     f"{selfArray.shape} vs {otherArray.shape}")
 
-        # Subtract dependent arrays
-        self.dependentArrays = [
-            selfArray - otherArray
-            for selfArray, otherArray in zip(self.dependentArrays, otherDQDSystem.dependentArrays)
-        ]
+            # Subtract dependent arrays and store the result in self.dependentArrays
+            self.dependentArrays = [
+                selfArray - otherArray
+                for selfArray, otherArray in zip(self.dependentArrays, otherDQDSystem.dependentArrays)
+            ]
 
         # Update labels for independent arrays
         independentLabels = [
@@ -234,7 +296,7 @@ class DQDSystem:
         plotsManager.plotSimulation()
 
         # Generate a common base filename
-        baseFilename = "_comparison_" + getTimestampedFilename()
+        baseFilename = f"comparisonWith_{otherDQDSystem.simulationName}_" + getTimestampedFilename()
 
         if saveData:
             self.saveData(title, options, independentArrays, baseFilename)
@@ -245,7 +307,8 @@ class DQDSystem:
     def saveData(self, title: List[str], options: Dict[str, Any], independentArrays, baseFilename: str) -> None:
         dataFolder = os.path.join(self.folder, "data")
         os.makedirs(dataFolder, exist_ok=True)
-        dataFilename = os.path.join(dataFolder, f"{baseFilename}.json")
+        dataFilename = os.path.join(dataFolder, f"{self.simulationName}_{baseFilename}.json")
+        print(dataFilename)
 
         dataToSave = {
             "dqdObject": self.dqdObject.toDict(),
@@ -261,5 +324,58 @@ class DQDSystem:
     def saveFigure(self, plotsManager: PlotsManager, baseFilename: str) -> None:
         plotsFolder = os.path.join(self.folder, "plots")
         os.makedirs(plotsFolder, exist_ok=True)
-        figureFilename = os.path.join(plotsFolder, f"{baseFilename}.pdf")
+        figureFilename = os.path.join(plotsFolder, f"{self.simulationName}_{baseFilename}.pdf")
         plotsManager.saveFig(figureFilename)
+
+    def loadData(self, simulationDate: str = "", otherToCompare: Dict[str, Any] = None) -> None:
+        """
+        Load simulation data from a JSON file. If the date is not provided, it will load the latest simulation data
+        for the given simulation name. If otherToCompare is provided, it will look for comparison files.
+
+        Args:
+            simulationDate (str, optional): The date of the simulation to load in the format "YYYYMMDD_HHMMSS". Defaults to "".
+            otherToCompare (Dict[str, Any], optional): A dictionary containing "fixedParameters" and "iterationParameters".
+                                                    If provided, it will look for comparison files. Defaults to None.
+        """
+
+        # Get the folder containing the results
+        dataFolder = os.path.join(self.folder, "data")
+
+        # Ensure the data folder exists
+        if not os.path.exists(dataFolder):
+            raise FileNotFoundError(f"The data folder '{dataFolder}' does not exist.")
+
+        # Determine the simulation file to load
+        if otherToCompare is None:
+            # Workflow for standard simulation files
+            if not simulationDate:
+                simulationFile = getLatestSimulationFile(dataFolder, self.simulationName)
+            else:
+                simulationFile = validateSimulationFile(dataFolder, self.simulationName, simulationDate)
+        else:
+            # Workflow for comparison files
+            otherDQDSystem = DQDSystem(otherToCompare["fixedParameters"],
+                                   otherToCompare["iterationParameters"])
+            otherSimulationName = otherDQDSystem.simulationName
+            if not simulationDate:
+                simulationFile = getLatestComparisonFile(dataFolder, self.simulationName, otherSimulationName)
+            else:
+                simulationFile = validateComparisonFile(dataFolder, self.simulationName, otherSimulationName, simulationDate)
+
+        # Load the simulation data from the JSON file
+        try:
+            with open(simulationFile, "r") as dataFile:
+                data = json.load(dataFile)
+        except Exception as e:
+            raise RuntimeError(f"Failed to load simulation data from '{simulationFile}': {e}")
+
+        # Update the DQD object with the loaded parameters
+        self.dqdObject.fromDict(data["dqdObject"])
+        self.dependentArrays = [np.array(array) for array in data["dependentArrays"]]
+        self.attributeInterpreter.iterationArrays = [np.array(array) for array in data["independentArrays"]]
+        self.title = data["title"]
+        self.plotOptions = data["options"]
+
+        # If otherToCompare is provided, store it
+        if otherToCompare is not None:
+            self.otherToCompare = otherToCompare
