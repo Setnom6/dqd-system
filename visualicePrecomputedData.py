@@ -1,10 +1,10 @@
 from src.DQDSystem import DQDSystem
-from src.base.DoubleQuantumDot import DQDAttributes
+from src.UnifiedParameters import UnifiedParameters
 
 # Define los parámetros de iteración
 iterationParameters = [
-    {"features": DQDAttributes.ZEEMAN.value + "X"},
-    {"features": DQDAttributes.ZEEMAN.value + "Y"},
+    {"features": UnifiedParameters.SCAN_ANGLE.value},
+    {"features": UnifiedParameters.MAGNETIC_FIELD.value + "M"},
 ]
 
 # Carga el DQDSystem precomputado   

@@ -338,17 +338,43 @@ class DoubleQuantumDot:
                 continue
         self.setParameters(dictToSet)
 
-    def getAttributeValue(self, key: str):
+    def getAttributeValue(self, *keys: str) -> Any:
         """
-        Get the value of an attribute by its key.
+        Get the values of one or more attributes by their keys.
 
         Args:
-            key (str): The name of the attribute.
+            *keys (str): The names of the attributes.
 
         Returns:
-            The value of the attribute. If the value is mutable (e.g., an array), a copy is returned.
+            Any: If a single key is provided, returns the value of the attribute.
+                If multiple keys are provided, returns a tuple containing the values of the requested attributes.
+                If a value is mutable (e.g., an array), a copy is returned.
+                If the key corresponds to ALPHA_THETA_ANGLE or ALPHA_PHI_ANGLE, the value is converted to degrees.
         """
-        value = getattr(self, key)
-        if isinstance(value, (np.ndarray, list)):
-            return value.copy()
-        return value
+
+        def convertToDegreesIfNeeded(key: str, value: Any) -> Any:
+            """
+            Converts the value to degrees if the key corresponds to ALPHA_THETA_ANGLE or ALPHA_PHI_ANGLE.
+
+            Args:
+                key (str): The attribute key.
+                value (Any): The attribute value.
+
+            Returns:
+                Any: The converted value if applicable, otherwise the original value.
+            """
+            if key in {DQDAttributes.ALPHA_THETA_ANGLE.value, DQDAttributes.ALPHA_PHI_ANGLE.value}:
+                return np.degrees(value) if isinstance(value, (float, np.floating)) else value
+            return value
+
+        if len(keys) == 1:  # Single key
+            value = getattr(self, keys[0])
+            value = value.copy() if isinstance(value, (np.ndarray, list)) else value
+            return convertToDegreesIfNeeded(keys[0], value)
+        else:  # Multiple keys
+            values = []
+            for key in keys:
+                value = getattr(self, key)
+                value = value.copy() if isinstance(value, (np.ndarray, list)) else value
+                values.append(convertToDegreesIfNeeded(key, value))
+            return tuple(values)
