@@ -2,27 +2,21 @@ from time import time
 
 import numpy as np
 
-from src.DQDSystem import DQDSystem
+from src.DQDSystemFactory import DQDSystemFactory
+from src.UnifiedParameters import UnifiedParameters
 from src.base.DoubleQuantumDot import DQDAttributes
 from src.base.auxiliaryMethods import formatComputationTime
 
 # Inicia el temporizador
 timeStart = time()
 
-# Define los arrays de iteración
-xArray = np.linspace(-3, 3, 300)  # Para zeeman
+DQDSystemFactory.changeParameter(UnifiedParameters.DETUNING.value, 0.8)
 
-# Define los parámetros de iteración
-iterationParameters = [
-    {"array": xArray, "features": DQDAttributes.ZEEMAN.value + "X"}
-]
+arrayValues = np.linspace(-3, 3, 300)  # Para zeeman
 
-# Define los parámetros fijos
-fixedParameters = {DQDAttributes.DETUNING.value: 0.08}
+dqdSystem = DQDSystemFactory.ZeemanZ(arrayValues)
+dqdSystem.runSimulation()
 
-dqdSystem = DQDSystem(fixedParameters, iterationParameters)
-
-# Define las opciones de ploteo
 plotOptions = {
     "grid": True,
     "applyToAll": False,
@@ -33,11 +27,10 @@ plotOptions = {
     "gaussianFilter": False
 }
 
-# Opcional: título personalizado como lista de strings para concatenar
 titleOptions = [DQDAttributes.DETUNING.value]
 
 # Ejecuta la simulación y genera los gráficos
-dqdSystem.simulateAndPlot(
+dqdSystem.plotSimulation(
     title=titleOptions,
     options=plotOptions,
     saveData=True,  # Guarda los datos como .npz

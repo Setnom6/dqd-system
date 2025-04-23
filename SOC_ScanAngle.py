@@ -2,7 +2,7 @@ from time import time
 
 import numpy as np
 
-from src.DQDSystem import DQDSystem
+from src.DQDSystemFactory import DQDSystemFactory
 from src.UnifiedParameters import UnifiedParameters
 from src.base.auxiliaryMethods import formatComputationTime
 
@@ -13,17 +13,11 @@ timeStart = time()
 xArray = np.linspace(0, 1, 50)  # para scan_angle en unidades de PI
 yArray = np.linspace(0, 2.5, 50)  # para magnetic field
 
-# Define los parámetros de iteración
-iterationParameters = [
-    {"array": xArray, "features": UnifiedParameters.SCAN_ANGLE.value},
-    {"array": yArray, "features": UnifiedParameters.MAGNETIC_FIELD.value + "M"},
-]
+DQDSystemFactory.changeParameter(UnifiedParameters.DETUNING.value, 0.8)
+DQDSystemFactory.changeParameter(UnifiedParameters.FACTOR_OME.value, 0.0)
+DQDSystemFactory.changeParameter(UnifiedParameters.MAGNETIC_FIELD.value, [1.0, 0.0, 0.0])
 
-# Define los parámetros fijos
-factorOME = 0.0
-fixedParameters = {UnifiedParameters.DETUNING.value: 0.8,
-                   UnifiedParameters.FACTOR_OME.value: factorOME,
-                   UnifiedParameters.MAGNETIC_FIELD.value: [1.0, 0.0, 0.0]}
+dqdSystem = DQDSystemFactory.ScanAngleVsMagneticField(xArray, yArray)
 
 # Define las opciones de ploteo
 plotOptions = {
@@ -40,7 +34,6 @@ titleOptions = [UnifiedParameters.DETUNING.value, UnifiedParameters.FACTOR_OME.v
                 UnifiedParameters.ALPHA_PHI_ANGLE.value,
                 UnifiedParameters.ALPHA_THETA_ANGLE.value]
 
-dqdSystem = DQDSystem(fixedParameters, iterationParameters)
 dqdSystem.runSimulation()
 dqdSystem.plotSimulation(title=titleOptions, options=plotOptions, saveData=True, saveFigure=True)
 

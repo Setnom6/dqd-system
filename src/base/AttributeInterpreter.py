@@ -500,10 +500,19 @@ class AttributeInterpreter:
         return completeZeeman
 
     def decideWhichAnnotations(self) -> str:
-        xParameter, _, _ = self.parseAttributeString(self.iterationParameterFeatures[0])
-        yParameter, _, _ = self.parseAttributeString(self.iterationParameterFeatures[1])
-        if NoAttributeParameters.SCAN_ANGLE.value == xParameter and DQDAttributes.MAGNETIC_FIELD.value == yParameter:
+        """
+        Decides the type of annotations to use based on the iterationParameterFeatures.
+
+        Returns:
+            str: The type of annotations to use, or an empty string if no match is found.
+        """
+        parsedParameters = [self.parseAttributeString(feature)[0] for feature in self.iterationParameterFeatures]
+
+        # Check for specific combinations of parameters
+        if (
+            NoAttributeParameters.SCAN_ANGLE.value in parsedParameters and
+            DQDAttributes.MAGNETIC_FIELD.value in parsedParameters
+        ):
             return AnnotationsType.EXPECTED_MODULE_RESONANCES.value
 
-        else:
-            return ""
+        return ""
