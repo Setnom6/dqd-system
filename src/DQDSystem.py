@@ -1,10 +1,10 @@
 import os
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Callable
 
 import numpy as np
 
-from src.base.AttributeInterpreter import AttributeInterpreter
-from src.base.DoubleQuantumDot import DoubleQuantumDot
+from src.base.AttributeInterpreter import AttributeInterpreter, AnnotationsType
+from src.base.DoubleQuantumDot import DoubleQuantumDot, DQDAttributes
 from src.base.PlotsManager import PlotsManager
 from src.base.SimulationManager import SimulationManager
 from src.base.auxiliaryMethods import getTimestampedFilename, getLatestSimulationFile
@@ -75,10 +75,12 @@ class DQDSystem:
         """
         updaterFunctions = self.attributeInterpreter.getUpdateFunctions(*indices)
         for updater, attributeName in updaterFunctions:
-            currentValue = self.dqdObject.getAttributeValue(attributeName)
-            updatedParams = updater(currentValue)
+            if isinstance(attributeName, tuple):  # Handle tuple of attribute names
+                currentValues = self.dqdObject.getAttributeValue(*attributeName)
+            else:  # Single attribute name
+                currentValues = self.dqdObject.getAttributeValue(attributeName)
+            updatedParams = updater(currentValues)
             self.dqdObject.setParameters(updatedParams)
-        self.dependentArrays = []
 
     def _simulatePoint(self) -> Tuple[float, ...]:
         """
@@ -116,6 +118,7 @@ class DQDSystem:
         if self.dependentArrays is None:
             raise RuntimeError("runSimulation must be called before plotting results.")
 
+        # Generate title and plotting info
         if self.attributeInterpreter is not None:
             title_str = self._fillTitle(self.attributeInterpreter.getTitle(title or []))
             self.plottingInfo = {
@@ -124,14 +127,28 @@ class DQDSystem:
                 "options": options or {}
             }
 
+        # Create PlotsManager instance
         plotsManager = PlotsManager(self.independentArrays, self.dependentArrays, self.plottingInfo)
-        plotsManager.plotSimulation()
 
+        # Generate annotations
+        annotations = self._generateAnnotations()
+
+        # Plot and save the figure without annotations
+        plotsManager.plotSimulation()
         baseFilename = getTimestampedFilename()
-        if saveData:
-            self._saveData(baseFilename)
         if saveFigure:
             self._saveFigure(plotsManager, baseFilename)
+
+        # Plot and save the figure with annotations
+        if annotations:
+            plotsManager.plotSimulation(annotations=annotations)
+            if saveFigure:
+                annotatedFilename = f"annotated_{baseFilename}"
+                self._saveFigure(plotsManager, annotatedFilename)
+
+        # Save data if required
+        if saveData:
+            self._saveData(baseFilename)
 
     def compareSimulationsAndPlot(self, otherSystemDict: 'DQDSystem' = None, title: List[str] = None,
                                   options: Dict[str, Any] = None, saveData: bool = False,
@@ -277,7 +294,8 @@ class DQDSystem:
         dqdSystemToReturn.dependentArrays = result["dependentArrays"]
         dqdSystemToReturn.plottingInfo = result["plottingInfo"]
 
-        if result["otherDQD"] is not None:
+        if result["otherDQD"] != {}:
+            print(result["otherDQD"])
             dqdSystemToReturn.otherDQD = DQDSystem()
             dqdSystemToReturn.otherDQD.dqdObject.fromDict(result["otherDQD"]["dqdObject"])
             dqdSystemToReturn.otherDQD.independentArrays = result["otherDQD"]["independentArrays"]
@@ -314,7 +332,7 @@ class DQDSystem:
             placeholder (str): The placeholder string.
 
         Returns:
-            str: The value of the attribute as a string.
+            str: The value of the attribute as a string, formatted to 2 decimal places if numeric.
         """
         name, axis, side = self.attributeInterpreter.parseAttributeString(placeholder)
         value = self.dqdObject.getAttributeValue(name)
@@ -326,4 +344,69 @@ class DQDSystem:
         elif side is not None:
             value = value[side]
 
+        # Format numeric values to 2 decimal places
+        if isinstance(value, (float, np.floating)):
+            return f"{value:.2f}"
+        elif isinstance(value, (np.ndarray, list)):
+            return "[" + ", ".join(f"{v:.2f}" for v in value) + "]"
+
         return str(value)
+
+    def _generateAnnotations(self) -> List[Dict[str, Any]]:
+        """
+        Decides which annotations to generate based on the iteration arrays.
+
+        Returns:
+            List[Dict[str, Any]]: A list of annotations to be passed to PlotsManager.
+        """
+        annotations = []
+
+        if self.attributeInterpreter is not None:
+            annotationsType = self.attributeInterpreter.decideWhichAnnotations()
+            if annotationsType == AnnotationsType.EXPECTED_MODULE_RESONANCES.value:
+                annotations.extend(self._generateExpectedModuleResonancesAnnotations())
+
+        return annotations
+
+    def _generateExpectedModuleResonancesAnnotations(self) -> List[Dict[str, Any]]:
+        """
+        Generates annotations for 'ExpectedModuleResonances'.
+
+        Returns:
+            List[Dict[str, Any]]: A list of annotations with coordinates, colors, and styles.
+        """
+        def generateReferenceLines(detuning: float) -> List[Tuple[Callable[[int], float], str, str]]:
+            """
+            Generates the reference lines for the annotations.
+
+            Args:
+                detuning (float): The detuning value from the DQD object.
+
+            Returns:
+                List[Tuple[Callable[[int], float], str, str]]: A list of line functions, colors, and styles.
+            """
+            return [
+                (lambda n: n + detuning, 'red', 'solid'),
+                (lambda n: n - detuning, 'blue', 'dashed'),
+                (lambda n: n + detuning, 'red', 'dashed'),
+                (lambda n: n - detuning, 'blue', 'dotted'),
+                (lambda n: n + detuning, 'red', 'dotted'),
+            ]
+
+        annotations = []
+        detuning = self.dqdObject.getAttributeValue(DQDAttributes.DETUNING.value)
+
+        # Generate resonance lines
+        n_values = range(0, 2)  # n goes from 0 to 42
+        reference_lines = generateReferenceLines(detuning)
+
+        for n in n_values:
+            for line_func, color, style in reference_lines:
+                annotations.append({
+                    "type": "line",
+                    "data": {"y": line_func(n)},
+                    "style": {"color": color, "linestyle": style, "linewidth": 1},
+                    "axis": 1  # Assuming the magneticFieldM is on the second axis
+                })
+
+        return annotations

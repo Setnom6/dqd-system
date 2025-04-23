@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import FuncFormatter
 
 
 class PlotsManager:
@@ -33,7 +34,83 @@ class PlotsManager:
             if colorBarMax is not None and (applyToAll or idx == 0):
                 ax.set_ylim(top=max(colorBarMax, np.max(self.dependentArrays[idx])))
 
-    def plotSimulation(self) -> None:
+    def _adjustFigureSizeForTitle(self) -> None:
+        """
+        Adjusts the figure size if the title exceeds the current figure dimensions.
+        """
+        if self.fig is None:
+            return
+
+        renderer = self.fig.canvas.get_renderer()
+        title = self.fig._suptitle
+        if title is not None:
+            bbox = title.get_window_extent(renderer=renderer)
+            fig_width, fig_height = self.fig.get_size_inches()
+            dpi = self.fig.dpi
+
+            # Check if the title exceeds the figure's top boundary
+            if bbox.ymax > fig_height * dpi:
+                # Increase the figure height to accommodate the title
+                extra_height = (bbox.ymax - fig_height * dpi) / dpi
+                self.fig.set_size_inches(fig_width, fig_height + extra_height)
+
+    def _formatTicks(self, ax) -> None:
+        """
+        Formats the ticks on the axes to have at most 2 decimals or scientific notation.
+        """
+
+        def formatFunc(x, _):
+            if abs(x) < 1e-2 or abs(x) > 1e3:
+                formatted = f"{x:.2e}"
+                # Remove e+00 if present
+                return formatted.replace("e+00", "")
+            return f"{x:.2f}"  # Two decimals
+
+        ax.xaxis.set_major_formatter(FuncFormatter(formatFunc))
+        ax.yaxis.set_major_formatter(FuncFormatter(formatFunc))
+
+    def _formatColorbar(self, colorbar) -> None:
+        """
+        Formats the colorbar values to have at most 3 decimals or scientific notation.
+        """
+
+        def formatFunc(x, _):
+            if abs(x) < 1e-3 or abs(x) > 1e4:
+                formatted = f"{x:.3e}"  # Scientific notation with 3 decimals
+                # Remove e+00 if present
+                return formatted.replace("e+00", "")
+            return f"{x:.3f}"  # Three decimals
+
+        colorbar.formatter = FuncFormatter(formatFunc)
+        colorbar.update_ticks()
+        colorbar.formatter = FuncFormatter(formatFunc)
+        colorbar.update_ticks()
+
+    def _drawAnnotations(self, ax, annotations: List[Dict[str, Any]]) -> None:
+        """
+        Draws annotations on the given axis, ensuring they are within the axis limits.
+
+        Args:
+            ax: The axis to draw the annotations on.
+            annotations (List[Dict[str, Any]]): A list of annotations with coordinates, colors, and styles.
+        """
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+
+        for annotation in annotations:
+            annotation_type = annotation.get("type")
+            data = annotation.get("data")
+            style = annotation.get("style", {})
+
+            if annotation_type == "line":
+                if "y" in data and ylim[0] <= data["y"] <= ylim[1]:
+                    # Draw horizontal line only if within y-limits
+                    ax.axhline(y=data["y"], **style)
+                elif "x" in data and xlim[0] <= data["x"] <= xlim[1]:
+                    # Draw vertical line only if within x-limits
+                    ax.axvline(x=data["x"], **style)
+
+    def plotSimulation(self, annotations: List[Dict[str, Any]] = None) -> None:
         numIndependentArrays = len(self.independentArrays)
         numDependentArrays = len(self.dependentArrays)
         options = self.plottingInfo.get("options", {})
@@ -60,9 +137,16 @@ class PlotsManager:
                 ax.legend(loc='upper right')
                 self._apply_options(ax, i, is2D=False)
 
+                # Draw annotations if provided
+                if annotations:
+                    self._drawAnnotations(ax, annotations)
+
             axes[-1].set_xlabel(self.plottingInfo["labels"][0][0])
             self.fig.suptitle(self.plottingInfo["title"])
             plt.tight_layout(rect=[0, 0, 1, 0.96])
+            self._adjustFigureSizeForTitle()
+            for ax in axes:
+                self._formatTicks(ax)
             plt.show()
 
         elif numIndependentArrays == 2:
@@ -103,7 +187,15 @@ class PlotsManager:
                 else:
                     c = ax.pcolormesh(X, Y, Z, shading='auto', cmap=colormap, vmin=vmin, vmax=vmax, rasterized=True)
 
-                self.fig.colorbar(c, ax=ax, label=self.plottingInfo["labels"][1][i])
+                # Ensure only one colorbar is created per axis
+                if len(axes) == 1 or i == 0:
+                    colorbar = self.fig.colorbar(c, ax=ax, label=self.plottingInfo["labels"][1][i])
+                    self._formatColorbar(colorbar)
+
+                # Draw annotations if provided
+                if annotations:
+                    self._drawAnnotations(ax, annotations)
+
                 ax.set_xlabel(self.plottingInfo["labels"][0][0])
                 ax.set_ylabel(self.plottingInfo["labels"][0][1])
                 ax.set_title(f"{self.plottingInfo['labels'][1][i]}")
@@ -111,6 +203,9 @@ class PlotsManager:
 
             self.fig.suptitle(self.plottingInfo["title"])
             plt.tight_layout(rect=[0, 0, 1, 0.96])
+            self._adjustFigureSizeForTitle()
+            for ax in axes:
+                self._formatTicks(ax)
             plt.show()
 
         elif numIndependentArrays == 3:
