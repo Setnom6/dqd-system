@@ -43,12 +43,10 @@ iterationParametersForCompare = [
 ]
 # Ejecuta la simulación y genera los gráficos
 
-otherSystemDict = {
-    "fixedParameters": fixedParameters,
-    "iterationParameters": iterationParametersForCompare
-}
+otherDQD = DQDSystem(fixedParameters, iterationParametersForCompare)
+dqdSystem.runSimulation()
 dqdSystem.compareSimulationsAndPlot(
-    otherSystemDict=otherSystemDict,
+    otherSystemDict=otherDQD,
     title=titleOptions,
     options=plotOptions,
     saveData=True,  # Guarda los datos como .npz

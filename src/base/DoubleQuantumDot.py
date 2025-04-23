@@ -6,6 +6,7 @@ from qutip import *
 
 
 class DQDAttributes(Enum):
+    """Enumeration of attributes for the Double Quantum Dot."""
     AC_AMPLITUDE = "acAmplitude"
     CHI = "chi"
     TAU = "tau"
@@ -23,9 +24,27 @@ class DQDAttributes(Enum):
 
 
 class DoubleQuantumDot:
-    """Class representing a Double Quantum Dot with defined parameters.
+    """
+    Class representing a Double Quantum Dot with defined parameters.
 
-    Frecuency of the driving is considered undetermined. Quantities are given in terms of this driving frequency.
+    The frequency of the driving is considered undetermined. Quantities are given in terms of this driving frequency.
+
+    Attributes:
+        acAmplitude (float): Amplitude of the AC driving field.
+        chi (float): Spin-flip tunneling factor.
+        tau (float): Tunneling amplitude between the dots.
+        gamma (np.ndarray): Coupling rates to the leads, shape (2, 1).
+        zeeman (np.ndarray): Zeeman splitting for each dot, shape (2, 3).
+        magneticField (np.ndarray): Magnetic field vector, shape (3,).
+        gFactor (np.ndarray): g-factor tensor for each dot, shape (2, 3, 3).
+        factorBetweenOMEAndZeeman (float): Proportionality factor between OME and Zeeman splitting.
+        alphaThetaAngle (float): Theta angle for the spin-orbit coupling.
+        alphaPhiAngle (float): Phi angle for the spin-orbit coupling.
+        OME (np.ndarray): Oscillatory magnetic field components, shape (2, 3).
+        detuning (float): Energy detuning between the dots.
+        groundRightEnergy (float): Energy of the ground state in the right dot.
+        sumCurrent (float): Total current through the system.
+        polarity (float): Polarity of the current through the system.
     """
 
     acAmplitude: float
@@ -45,6 +64,12 @@ class DoubleQuantumDot:
     polarity: float
 
     def __init__(self, parameters: Dict[str, Any] = None) -> None:
+        """
+        Initialize the Double Quantum Dot with default or provided parameters.
+
+        Args:
+            parameters (Dict[str, Any], optional): Dictionary of parameters to initialize the system. Defaults to None.
+        """
         self._initializeDefaultParameters()
         if parameters is not None:
             self.setParameters(parameters)
@@ -53,8 +78,9 @@ class DoubleQuantumDot:
         self.polarity = None
 
     def _initializeDefaultParameters(self) -> None:
-        """Initialize default parameters for the Double Quantum Dot system."""
-
+        """
+        Initialize default parameters for the Double Quantum Dot system.
+        """
         self.acAmplitude = 1.2
         self.chi = 0.1
         self.tau = 0.1
@@ -74,6 +100,15 @@ class DoubleQuantumDot:
         self.alphaPhiAngle = 0.0
 
     def setParameters(self, parameters: Dict[str, Any]) -> None:
+        """
+        Set the parameters of the Double Quantum Dot.
+
+        Args:
+            parameters (Dict[str, Any]): Dictionary of parameters to set.
+
+        Raises:
+            AttributeError: If a parameter is invalid or its type does not match the expected type.
+        """
         for key, value in parameters.items():
             if hasattr(self, key):
                 self._validateParameters(key, value)  # Validate the parameter
@@ -90,12 +125,21 @@ class DoubleQuantumDot:
                 self.zeeman[0] = self.gFactor[0] @ self.magneticField
                 self.zeeman[1] = self.gFactor[1] @ self.magneticField
 
-        if parameters is not None or parameters is not {}:
+        if parameters is not None or parameters != {}:
             self.sumCurrent = None
             self.polarity = None
 
     def _validateParameters(self, key: str, value: Any) -> None:
-        """Validate the parameters being set to ensure correctness."""
+        """
+        Validate the parameters being set to ensure correctness.
+
+        Args:
+            key (str): The name of the parameter.
+            value (Any): The value of the parameter.
+
+        Raises:
+            ValueError: If the parameter value is invalid.
+        """
         if key == "gamma":
             if not isinstance(value, np.ndarray) or value.shape != (2, 1):
                 raise ValueError(
@@ -220,7 +264,12 @@ class DoubleQuantumDot:
         return chargeObservables
 
     def computeCurrent(self, iterationsPerPeriod=20) -> None:
-        """Run the simulation for the Double Quantum Dot system."""
+        """
+        Run the simulation for the Double Quantum Dot system to compute the current and polarity.
+
+        Args:
+            iterationsPerPeriod (int, optional): Number of iterations per period. Defaults to 20.
+        """
         T = 2 * np.pi
         H0 = Qobj(self._timeIndependentHamiltonian())
         H1 = Qobj(self._oscillatoryHamiltonian())
@@ -243,14 +292,28 @@ class DoubleQuantumDot:
         spinDown = np.mean(results.expect[4])
         self.sumCurrent = spinUp + spinDown
         self.polarity = (spinUp - spinDown) / (spinUp + spinDown)
-        return None
 
     def getCurrent(self, iterationsPerPeriod=20) -> Tuple[float, float]:
+        """
+        Get the current and polarity of the system.
+
+        Args:
+            iterationsPerPeriod (int, optional): Number of iterations per period. Defaults to 20.
+
+        Returns:
+            Tuple[float, float]: The total current and polarity.
+        """
         if self.sumCurrent is None or self.polarity is None:
             self.computeCurrent(iterationsPerPeriod)
         return self.sumCurrent, self.polarity
 
     def toDict(self) -> Dict[str, Any]:
+        """
+        Convert the Double Quantum Dot object to a dictionary.
+
+        Returns:
+            Dict[str, Any]: Dictionary representation of the object.
+        """
         dictToReturn = {
             key: (value.tolist() if isinstance(value, np.ndarray)
                   else int(value) if isinstance(value, np.integer)
@@ -262,6 +325,12 @@ class DoubleQuantumDot:
         return dictToReturn
 
     def fromDict(self, dictToSet: Dict[str, Any]) -> None:
+        """
+        Set the attributes of the Double Quantum Dot from a dictionary.
+
+        Args:
+            dictToSet (Dict[str, Any]): Dictionary of attributes to set.
+        """
         for key, value in dictToSet.items():
             if isinstance(value, list):
                 dictToSet[key] = np.array(value)
@@ -280,8 +349,6 @@ class DoubleQuantumDot:
             The value of the attribute. If the value is mutable (e.g., an array), a copy is returned.
         """
         value = getattr(self, key)
-        # Check if the value is mutable (e.g., an array) and return a copy if possible
         if isinstance(value, (np.ndarray, list)):
             return value.copy()
-        # For scalar values, return them directly
         return value
