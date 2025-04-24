@@ -98,17 +98,24 @@ class PlotsManager:
         ylim = ax.get_ylim()
 
         for annotation in annotations:
-            annotation_type = annotation.get("type")
+            annotationType = annotation.get("type")
             data = annotation.get("data")
             style = annotation.get("style", {})
+            axis = annotation.get("axis", None)
 
-            if annotation_type == "line":
+            if annotationType == "line":
+                # Draw horizontal or vertical lines if within limits
                 if "y" in data and ylim[0] <= data["y"] <= ylim[1]:
-                    # Draw horizontal line only if within y-limits
                     ax.axhline(y=data["y"], **style)
                 elif "x" in data and xlim[0] <= data["x"] <= xlim[1]:
-                    # Draw vertical line only if within x-limits
                     ax.axvline(x=data["x"], **style)
+
+            elif annotationType == "point" and axis is not None:
+                # Draw points based on the specified axis
+                if axis == 0 and xlim[0] <= data["x"] <= xlim[1]:  # Point on X-axis
+                    ax.plot(data["x"], 0, **style)
+                elif axis == 1 and ylim[0] <= data["y"] <= ylim[1]:  # Point on Y-axis
+                    ax.plot(0, data["y"], **style)
 
     def plotSimulation(self, annotations: List[Dict[str, Any]] = None) -> None:
         numIndependentArrays = len(self.independentArrays)
@@ -123,7 +130,9 @@ class PlotsManager:
         globalColormap = options.get("colormap", None)
 
         if numIndependentArrays == 1:
-            self.fig, axes = plt.subplots(1, len(indices), figsize=(5 * len(indices), 4), sharey=True)
+            self.fig, axes = plt.subplots(1, len(indices), figsize=(5 * len(indices), 4), sharey=True,
+                                          constrained_layout=True)
+
             if len(indices) == 1:
                 axes = [axes]
 
@@ -142,15 +151,63 @@ class PlotsManager:
                     self._drawAnnotations(ax, annotations)
 
             axes[-1].set_xlabel(self.plottingInfo["labels"][0][0])
-            self.fig.suptitle(self.plottingInfo["title"])
-            plt.tight_layout(rect=[0, 0, 1, 0.96])
+            # Split title into lines
+            titleText = self.plottingInfo["title"]
+            numTitleLines = titleText.count("\n") + 1
+
+            # Reserve space above the plots (0.05 por línea funciona bien en general)
+            topMargin = 0.88 - (numTitleLines - 1) * 0.05
+            topMargin = max(0.65, topMargin)  # por seguridad, no colapsar layout
+
+            self.fig.suptitle(titleText)
+            self.fig.subplots_adjust(top=topMargin)
+
             self._adjustFigureSizeForTitle()
             for ax in axes:
                 self._formatTicks(ax)
             plt.show()
 
         elif numIndependentArrays == 2:
-            self.fig, axes = plt.subplots(1, len(indices), figsize=(5 * len(indices), 4))
+            drawLinesAxis = options.get("Draw1DLines", None)
+
+            if drawLinesAxis is not None:
+                self.fig, axes = plt.subplots(1, len(indices), figsize=(5 * len(indices), 4), constrained_layout=True)
+                if len(indices) == 1:
+                    axes = [axes]
+
+                xArray = self.independentArrays[1] if drawLinesAxis == 0 else self.independentArrays[0]
+                lineIndexArray = self.independentArrays[0] if drawLinesAxis == 0 else self.independentArrays[1]
+
+                for ax, i in zip(axes, indices):
+                    Z = self.dependentArrays[i].T if drawLinesAxis == 0 else self.dependentArrays[i]
+                    for idx, lineValue in enumerate(lineIndexArray):
+                        yData = Z[idx, :] if drawLinesAxis == 0 else Z[:, idx]
+                        ax.plot(xArray, yData,
+                                label=f"{self.plottingInfo['labels'][0][drawLinesAxis]} = {lineValue:.2f}")
+                    ax.set_xlabel(self.plottingInfo["labels"][0][1 - drawLinesAxis])
+                    ax.set_ylabel(self.plottingInfo["labels"][1][i])
+                    ax.legend()
+                    ax.set_title(f"{self.plottingInfo['labels'][1][i]}")
+                    self._apply_options(ax, i, is2D=False)
+                    if annotations:
+                        self._drawAnnotations(ax, annotations)
+                    self._formatTicks(ax)
+
+                # Split title into lines
+                titleText = self.plottingInfo["title"]
+                numTitleLines = titleText.count("\n") + 1
+
+                # Reserve space above the plots (0.05 por línea funciona bien en general)
+                topMargin = 0.88 - (numTitleLines - 1) * 0.05
+                topMargin = max(0.65, topMargin)  # por seguridad, no colapsar layout
+
+                self.fig.suptitle(titleText)
+                self.fig.subplots_adjust(top=topMargin)
+                self._adjustFigureSizeForTitle()
+                plt.show()
+                return
+
+            self.fig, axes = plt.subplots(1, len(indices), figsize=(5 * len(indices), 4), constrained_layout=True)
             if len(indices) == 1:
                 axes = [axes]
 
@@ -201,8 +258,16 @@ class PlotsManager:
                 ax.set_title(f"{self.plottingInfo['labels'][1][i]}")
                 self._apply_options(ax, i, is2D=True)
 
-            self.fig.suptitle(self.plottingInfo["title"])
-            plt.tight_layout(rect=[0, 0, 1, 0.96])
+            # Split title into lines
+            titleText = self.plottingInfo["title"]
+            numTitleLines = titleText.count("\n") + 1
+
+            # Reserve space above the plots (0.05 por línea funciona bien en general)
+            topMargin = 0.88 - (numTitleLines - 1) * 0.05
+            topMargin = max(0.65, topMargin)  # por seguridad, no colapsar layout
+
+            self.fig.suptitle(titleText)
+            self.fig.subplots_adjust(top=topMargin)
             self._adjustFigureSizeForTitle()
             for ax in axes:
                 self._formatTicks(ax)

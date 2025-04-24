@@ -3,40 +3,48 @@ from time import time
 import numpy as np
 
 from src.DQDSystemFactory import DQDSystemFactory
-from src.UnifiedParameters import UnifiedParameters
+from src.base.DoubleQuantumDot import DQDAttributes
 from src.base.auxiliaryMethods import formatComputationTime
 
-# Inicia el temporizador
+# Start timer
 timeStart = time()
 
-# Define los arrays de iteración
-xArray = np.linspace(0, 1, 50)  # para scan_angle en unidades de PI
-yArray = np.linspace(0, 2.5, 50)  # para magnetic field
+# Define iteration arrays
+xArray = np.linspace(0, 1, 50)  # scan_angle (in units of π)
+yArray = np.linspace(1.7, 1.9, 5)  # magnetic field
 
-DQDSystemFactory.changeParameter(UnifiedParameters.DETUNING.value, 0.8)
-DQDSystemFactory.changeParameter(UnifiedParameters.FACTOR_OME.value, 0.0)
-DQDSystemFactory.changeParameter(UnifiedParameters.MAGNETIC_FIELD.value, [1.0, 0.0, 0.0])
+# Set fixed simulation parameters
+DQDSystemFactory.changeParameter(DQDAttributes.DETUNING.value, 0.8)
+DQDSystemFactory.changeParameter(DQDAttributes.FACTOR_OME.value, 0.5)
+DQDSystemFactory.changeParameter(DQDAttributes.MAGNETIC_FIELD.value, [1.0, 1.0, 0.0])
 
-dqdSystem = DQDSystemFactory.ScanAngleVsMagneticField(xArray, yArray)
+# Configure plot options
+DQDSystemFactory.addToPlotOptions("grid", True)
+DQDSystemFactory.addToPlotOptions("applyToAll", False)
+DQDSystemFactory.addToPlotOptions("colorBarMin", None)
+DQDSystemFactory.addToPlotOptions("colorBarMax", None)
+DQDSystemFactory.addToPlotOptions("plotOnly", 0)
+DQDSystemFactory.addToPlotOptions("logColorBar", False)
+DQDSystemFactory.addToPlotOptions("gaussianFilter", False)
+DQDSystemFactory.addToPlotOptions("Draw1DLines", 1)
 
-# Define las opciones de ploteo
-plotOptions = {
-    "grid": True,
-    "applyToAll": False,
-    "colorBarMin": None,
-    "colorBarMax": None,
-    "plotOnly": 0,
-    "logColorBar": False,
-    "gaussianFilter": False
-}
-# Opcional: título personalizado como lista de strings para concatenar
-titleOptions = [UnifiedParameters.DETUNING.value, UnifiedParameters.FACTOR_OME.value,
-                UnifiedParameters.ALPHA_PHI_ANGLE.value,
-                UnifiedParameters.ALPHA_THETA_ANGLE.value]
+# Set custom title fields
+DQDSystemFactory.addToTitle(DQDAttributes.DETUNING.value)
+DQDSystemFactory.addToTitle(DQDAttributes.FACTOR_OME.value)
+DQDSystemFactory.addToTitle(DQDAttributes.SOC_PHI_ANGLE.value)
+DQDSystemFactory.addToTitle(DQDAttributes.SOC_THETA_ANGLE.value)
 
+# Create and simulate the system
+dqdSystem = DQDSystemFactory.scanAngleVsMagneticFieldModule(xArray, yArray)
 dqdSystem.runSimulation()
-dqdSystem.plotSimulation(title=titleOptions, options=plotOptions, saveData=True, saveFigure=True)
 
-# Calcula y muestra el tiempo total de ejecución
-timeEnd = time() - timeStart
-print("Total time: {}".format(formatComputationTime(timeEnd)))
+# Plot results using factory-managed options and title
+dqdSystem.plotSimulation(
+    title=DQDSystemFactory.getTitleForSystem(),
+    options=DQDSystemFactory.getPlotOptionsForSystem(),
+    saveData=True,
+    saveFigure=True
+)
+
+# Print total execution time
+print("Total time:", formatComputationTime(time() - timeStart))

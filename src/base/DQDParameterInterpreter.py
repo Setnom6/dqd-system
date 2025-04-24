@@ -34,7 +34,7 @@ class DQDParameterInterpreter:
             and generates update functions for simulation parameters.
 
         """
-        self.fixedParameters = self._processFixedParameters(fixedParameters)
+        self.fixedParameters = DQDParameterInterpreter.processFixedParameters(fixedParameters)
         self.iterationArrays, self.iterationFeatures = self._processIterationParameters(iterationParameters)
         self._originalIterationParameters = iterationParameters
 
@@ -109,7 +109,8 @@ class DQDParameterInterpreter:
 
         return attributeString, axis, side
 
-    def _processFixedParameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    @staticmethod
+    def processFixedParameters(parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
                 Processes and adjusts fixed parameters for the DQD system.
 
@@ -202,8 +203,9 @@ class DQDParameterInterpreter:
                 return {attribute: self._adjustGFactor(np.copy(currentValue), newValue, axis, side)}
         elif attribute == NoAttributeParameters.SCAN_ANGLE.value:
             def updater(currentValues):
-                return {DQDAttributes.ZEEMAN.value: self._adjustScanAngleDict(np.copy(currentValues[0]),
-                                                                              np.copy(currentValues[1]), newValue)}
+                zeemanValue, magneticFieldValue = self._adjustScanAngleDict(np.copy(currentValues[0]),
+                                                                            np.copy(currentValues[1]), newValue)
+                return {DQDAttributes.ZEEMAN.value: zeemanValue, DQDAttributes.MAGNETIC_FIELD.value: magneticFieldValue}
         else:
             def updater(currentValue):
                 return {attribute: newValue}
@@ -300,7 +302,7 @@ class DQDParameterInterpreter:
         return completeValue
 
     def _adjustScanAngleDict(self, completeMagneticField: np.ndarray, completeGFactor: np.ndarray,
-                             newAngleValue: float) -> np.ndarray:
+                             newAngleValue: float) -> Tuple[np.ndarray, np.ndarray]:
         """
         Adjusts the Zeeman splitting values based on a new scan angle.
 
@@ -320,4 +322,4 @@ class DQDParameterInterpreter:
         ZLeft = list(completeGFactor[0] @ BVector)
         ZRight = list(completeGFactor[1] @ BVector)
         completeZeeman = np.array([ZLeft, ZRight])
-        return completeZeeman
+        return completeZeeman, BVector

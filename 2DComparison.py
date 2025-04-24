@@ -2,44 +2,45 @@ from time import time
 
 import numpy as np
 
-from src.DQDSystemFactory import DQDSystemFactory
-from src.UnifiedParameters import UnifiedParameters
+from src.DQDSystemFactory import DQDSystemFactory, DQDAttributes
 from src.base.auxiliaryMethods import formatComputationTime
 
-# Inicia el temporizador
+# Start the timer
 timeStart = time()
 
-# Define los arrays de iteración
-xArray = np.linspace(-3, 3, 50)  # Para zeeman
+# Define iteration arrays
+xArray = np.linspace(-3, 3, 50)
 
-DQDSystemFactory.changeParameter(UnifiedParameters.DETUNING.value, 0.8)
+# Set fixed simulation parameters
+DQDSystemFactory.changeParameter(DQDAttributes.DETUNING.value, 0.8)
 
-dqdSystem = DQDSystemFactory.ZeemanXvsZeemanZ(xArray, xArray)
+# Configure plot options globally
+DQDSystemFactory.addToPlotOptions("grid", True)
+DQDSystemFactory.addToPlotOptions("applyToAll", False)
+DQDSystemFactory.addToPlotOptions("colorBarMin", 0.02)
+DQDSystemFactory.addToPlotOptions("colorBarMax", 0.35)
+DQDSystemFactory.addToPlotOptions("plotOnly", None)
+DQDSystemFactory.addToPlotOptions("logColorBar", False)
+DQDSystemFactory.addToPlotOptions("gaussianFilter", False)
+
+# Configure title content
+DQDSystemFactory.addToTitle(DQDAttributes.DETUNING.value)
+
+# Create and simulate both systems
+dqdSystem = DQDSystemFactory.zeemanXvsZeemanZ(xArray, xArray)
 dqdSystem.runSimulation()
-otherSystem = DQDSystemFactory.ZeemanXvsZeemanY(xArray, xArray)
 
-# Define las opciones de ploteo
-plotOptions = {
-    "grid": True,
-    "applyToAll": False,
-    "colorBarMin": 0.02,
-    "colorBarMax": 0.35,
-    "plotOnly": None,
-    "logColorBar": False,
-    "gaussianFilter": False
-}
+otherSystem = DQDSystemFactory.zeemanXvsZeemanY(xArray, xArray)
+otherSystem.runSimulation()
 
-# Opcional: título personalizado como lista de strings para concatenar
-titleOptions = [UnifiedParameters.DETUNING.value]
-
+# Plot comparison
 dqdSystem.compareSimulationsAndPlot(
     otherSystemDict=otherSystem,
-    title=titleOptions,
-    options=plotOptions,
-    saveData=True,  # Guarda los datos como .npz
-    saveFigure=True  # Guarda la figura como .pdf
+    title=DQDSystemFactory.getTitleForSystem(),
+    options=DQDSystemFactory.getPlotOptionsForSystem(),
+    saveData=True,
+    saveFigure=True
 )
 
-# Calcula y muestra el tiempo total de ejecución
-timeEnd = time() - timeStart
-print("Total time: {}".format(formatComputationTime(timeEnd)))
+# Show elapsed time
+print("Total time:", formatComputationTime(time() - timeStart))

@@ -2,8 +2,8 @@ import unittest
 
 import numpy as np
 
-from src.base.AttributeInterpreter import AttributeInterpreter, Axis, Side
 from src.base.DoubleQuantumDot import DQDAttributes
+from src.base.attributeMethods import AttributeInterpreter, Axis, Side
 
 
 class TestAttributeInterpreter(unittest.TestCase):

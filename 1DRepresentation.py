@@ -2,41 +2,41 @@ from time import time
 
 import numpy as np
 
-from src.DQDSystemFactory import DQDSystemFactory
-from src.UnifiedParameters import UnifiedParameters
-from src.base.DoubleQuantumDot import DQDAttributes
+from src.DQDSystemFactory import DQDSystemFactory, DQDAttributes
 from src.base.auxiliaryMethods import formatComputationTime
 
-# Inicia el temporizador
+# Start the timer
 timeStart = time()
 
-DQDSystemFactory.changeParameter(UnifiedParameters.DETUNING.value, 0.8)
+# Set fixed simulation parameters
+DQDSystemFactory.changeParameter(DQDAttributes.DETUNING.value, 0.8)
 
-arrayValues = np.linspace(-3, 3, 300)  # Para zeeman
+# Define the array to sweep ZeemanZ
+arrayValues = np.linspace(-3, 3, 300)
 
-dqdSystem = DQDSystemFactory.ZeemanZ(arrayValues)
+# Optional: configure plot options globally
+DQDSystemFactory.addToPlotOptions("grid", True)
+DQDSystemFactory.addToPlotOptions("applyToAll", False)
+DQDSystemFactory.addToPlotOptions("colorBarMin", 0.02)
+DQDSystemFactory.addToPlotOptions("colorBarMax", 0.35)
+DQDSystemFactory.addToPlotOptions("plotOnly", None)
+DQDSystemFactory.addToPlotOptions("logColorBar", False)
+DQDSystemFactory.addToPlotOptions("gaussianFilter", False)
+
+# Optional: configure dynamic title fields
+DQDSystemFactory.addToTitle(DQDAttributes.DETUNING.value)
+
+# Create and run the system
+dqdSystem = DQDSystemFactory.zeemanZ(arrayValues)
 dqdSystem.runSimulation()
 
-plotOptions = {
-    "grid": True,
-    "applyToAll": False,
-    "colorBarMin": 0.02,
-    "colorBarMax": 0.35,
-    "plotOnly": None,
-    "logColorBar": False,
-    "gaussianFilter": False
-}
-
-titleOptions = [DQDAttributes.DETUNING.value]
-
-# Ejecuta la simulación y genera los gráficos
+# Plot using factory-managed options and title
 dqdSystem.plotSimulation(
-    title=titleOptions,
-    options=plotOptions,
-    saveData=True,  # Guarda los datos como .npz
-    saveFigure=True  # Guarda la figura como .pdf
+    title=DQDSystemFactory.getTitleForSystem(),
+    options=DQDSystemFactory.getPlotOptionsForSystem(),
+    saveData=True,
+    saveFigure=True
 )
 
-# Calcula y muestra el tiempo total de ejecución
-timeEnd = time() - timeStart
-print("Total time: {}".format(formatComputationTime(timeEnd)))
+# Show elapsed time
+print("Total time:", formatComputationTime(time() - timeStart))

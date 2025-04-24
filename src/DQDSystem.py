@@ -320,20 +320,72 @@ class DQDSystem:
         figureFilename = os.path.join(plotsFolder, f"{self.simulationName}_{baseFilename}.pdf")
         plotsManager.saveFig(figureFilename)
 
-    def _fillTitle(self, titleOptions: Dict[str, Any]) -> str:
+    def _fillTitle(self, titleOptions: Dict[str, Any], maxLineLength: int = 80) -> str:
         """
-        Fills the title string with the appropriate values from the DQD object.
-
-        Args:
-            titleOptions (Dict[str, Any]): A dictionary containing the title template and placeholders.
-
-        Returns:
-            str: The filled title string.
+        Fills and formats the title string from the DQD object values,
+        wrapping long lines and formatting nested arrays with indentation.
         """
-        title_str = titleOptions["title"]
+        titleStr = titleOptions["title"]
         placeholders = titleOptions["placeholders"]
         values = [self._getAttributeValueFromPlaceholder(ph) for ph in placeholders]
-        return title_str.format(*values)
+        filledTitle = titleStr.format(*values)
+
+        parts = []
+        current = ""
+        bracketLevel = 0
+        for char in filledTitle:
+            if char == "[":
+                bracketLevel += 1
+            elif char == "]":
+                bracketLevel -= 1
+            if char == "," and bracketLevel == 0:
+                parts.append(current.strip())
+                current = ""
+            else:
+                current += char
+        if current:
+            parts.append(current.strip())
+
+        formattedLines = []
+        currentLine = ""
+        for part in parts:
+            isArray = part.startswith("[[") and part.endswith("]]")
+            if isArray:
+                if currentLine:
+                    formattedLines.append(currentLine.strip())
+                    currentLine = ""
+                formattedLines.append(part)
+            else:
+                if len(currentLine + ", " + part) > maxLineLength:
+                    formattedLines.append(currentLine.strip())
+                    currentLine = part
+                else:
+                    currentLine += ", " + part if currentLine else part
+        if currentLine:
+            formattedLines.append(currentLine.strip())
+
+        def formatNestedArrayWithIndent(fullLine: str) -> str:
+            if "=" not in fullLine:
+                return fullLine
+
+            label, arrayPart = fullLine.split("=", maxsplit=1)
+            arrayPart = arrayPart.strip()
+            if not arrayPart.startswith("[[") or not arrayPart.endswith("]]"):
+                return fullLine
+
+            inner = arrayPart[2:-2]  # remove outer [[ ]]
+            rows = inner.split("], [")
+            formattedRows = [f"  [{row.strip()}]" for row in rows]
+            return f"{label.strip()} = [[\n" + "\n".join(formattedRows) + "\n]]"
+
+        finalLines = []
+        for line in formattedLines:
+            if "[[" in line and "]]" in line:
+                finalLines.append(formatNestedArrayWithIndent(line))
+            else:
+                finalLines.append(line)
+
+        return "\n".join(finalLines)
 
     def _getAttributeValueFromPlaceholder(self, placeholder: str) -> str:
         """
@@ -358,6 +410,12 @@ class DQDSystem:
         if isinstance(value, (float, np.floating)):
             return f"{value:.2f}"
         elif isinstance(value, (np.ndarray, list)):
-            return "[" + ", ".join(f"{v:.2f}" for v in value) + "]"
+            # Handle multi-dimensional arrays
+            if np.ndim(value) == 1:
+                return "[" + ", ".join(f"{v:.2f}" for v in value) + "]"
+            elif np.ndim(value) == 2:
+                return "[" + ", ".join("[" + ", ".join(f"{v:.2f}" for v in row) + "]" for row in value) + "]"
+            else:
+                return f"Array with shape {value.shape}"
 
         return str(value)
