@@ -15,8 +15,8 @@ class DQDAttributes(Enum):
     MAGNETIC_FIELD = "magneticField"
     G_FACTOR = "gFactor"
     FACTOR_OME = "factorBetweenOMEAndZeeman"
-    ALPHA_THETA_ANGLE = "alphaThetaAngle"
-    ALPHA_PHI_ANGLE = "alphaPhiAngle"
+    SOC_THETA_ANGLE = "socThetaAngle"
+    SOC_PHI_ANGLE = "socPhiAngle"
     DETUNING = "detuning"
     GROUND_RIGHT_ENERGY = "groundRightEnergy"
     SUM_CURRENT = "sumCurrent"
@@ -38,8 +38,8 @@ class DoubleQuantumDot:
         magneticField (np.ndarray): Magnetic field vector, shape (3,).
         gFactor (np.ndarray): g-factor tensor for each dot, shape (2, 3, 3).
         factorBetweenOMEAndZeeman (float): Proportionality factor between OME and Zeeman splitting.
-        alphaThetaAngle (float): Theta angle for the spin-orbit coupling.
-        alphaPhiAngle (float): Phi angle for the spin-orbit coupling.
+        socThetaAngle (float): Theta angle for the spin-orbit coupling.
+        socPhiAngle (float): Phi angle for the spin-orbit coupling.
         OME (np.ndarray): Oscillatory magnetic field components, shape (2, 3).
         detuning (float): Energy detuning between the dots.
         groundRightEnergy (float): Energy of the ground state in the right dot.
@@ -55,8 +55,8 @@ class DoubleQuantumDot:
     magneticField: np.ndarray
     gFactor: np.ndarray
     factorBetweenOMEAndZeeman: float
-    alphaThetaAngle: float
-    alphaPhiAngle: float
+    socThetaAngle: float
+    socPhiAngle: float
     OME: np.ndarray
     detuning: float
     groundRightEnergy: float
@@ -96,8 +96,8 @@ class DoubleQuantumDot:
         self.magneticField = np.zeros((3,))
         self.OME = np.zeros((2, 3))
         self.factorBetweenOMEAndZeeman = 0.5
-        self.alphaThetaAngle = np.pi / 2
-        self.alphaPhiAngle = 0.0
+        self.socThetaAngle = np.pi / 2
+        self.socPhiAngle = 0.0
 
     def setParameters(self, parameters: Dict[str, Any]) -> None:
         """
@@ -160,7 +160,7 @@ class DoubleQuantumDot:
             if not isinstance(value, np.ndarray) or value.shape != (2, 3):
                 raise ValueError(
                     f"'OME' must be a numpy array with shape (2, 3), got {value.shape if isinstance(value, np.ndarray) else type(value)}")
-        elif key in ["acAmplitude", "chi", "tau", "factorBetweenOMEAndZeeman", "alphaThetaAngle", "alphaPhiAngle",
+        elif key in ["acAmplitude", "chi", "tau", "factorBetweenOMEAndZeeman", "socThetaAngle", "socPhiAngle",
                      "detuning", "groundRightEnergy"]:
             if not isinstance(value, (int, float)):
                 raise ValueError(f"'{key}' must be a numeric value, got {type(value)}")
@@ -174,8 +174,8 @@ class DoubleQuantumDot:
         groundLeftEnergy = self.groundRightEnergy - self.detuning
         tau0 = self.tau - self.tau * self.chi
         tauSFModule = self.tau * self.chi
-        thetaAngle = self.alphaThetaAngle
-        phiAngle = self.alphaPhiAngle
+        thetaAngle = self.socThetaAngle
+        phiAngle = self.socPhiAngle
         tauXSF = tauSFModule * np.cos(thetaAngle) * np.cos(phiAngle)
         tauYSF = tauSFModule * np.sin(thetaAngle) * np.cos(phiAngle)
         tauZSF = tauSFModule * np.sin(phiAngle)
@@ -224,9 +224,9 @@ class DoubleQuantumDot:
             The OME terms are supposed to be factor*(-Zz)*alphay*sigmax, factor*(Zz)*alphax*sigmay, factor*(-Zy*alphax+Zx*alphay)*sigmaz
         """
 
-        alphax = self.factorBetweenOMEAndZeeman * np.cos(self.alphaThetaAngle) * np.cos(self.alphaPhiAngle)
-        alphay = self.factorBetweenOMEAndZeeman * np.sin(self.alphaThetaAngle) * np.cos(self.alphaPhiAngle)
-        alphaz = self.factorBetweenOMEAndZeeman * np.sin(self.alphaPhiAngle)
+        alphax = self.factorBetweenOMEAndZeeman * np.cos(self.socThetaAngle) * np.cos(self.socPhiAngle)
+        alphay = self.factorBetweenOMEAndZeeman * np.sin(self.socThetaAngle) * np.cos(self.socPhiAngle)
+        alphaz = self.factorBetweenOMEAndZeeman * np.sin(self.socPhiAngle)
 
         self.OME[0][0] = -alphay * self.zeeman[0][2] + alphaz * self.zeeman[0][1]
         self.OME[0][1] = alphax * self.zeeman[0][2] - alphaz * self.zeeman[0][0]
@@ -349,12 +349,12 @@ class DoubleQuantumDot:
             Any: If a single key is provided, returns the value of the attribute.
                 If multiple keys are provided, returns a tuple containing the values of the requested attributes.
                 If a value is mutable (e.g., an array), a copy is returned.
-                If the key corresponds to ALPHA_THETA_ANGLE or ALPHA_PHI_ANGLE, the value is converted to degrees.
+                If the key corresponds to SOC_THETA_ANGLE or SOC_PHI_ANGLE, the value is converted to degrees.
         """
 
         def convertToDegreesIfNeeded(key: str, value: Any) -> Any:
             """
-            Converts the value to degrees if the key corresponds to ALPHA_THETA_ANGLE or ALPHA_PHI_ANGLE.
+            Converts the value to degrees if the key corresponds to SOC_THETA_ANGLE or SOC_PHI_ANGLE.
 
             Args:
                 key (str): The attribute key.
@@ -363,7 +363,7 @@ class DoubleQuantumDot:
             Returns:
                 Any: The converted value if applicable, otherwise the original value.
             """
-            if key in {DQDAttributes.ALPHA_THETA_ANGLE.value, DQDAttributes.ALPHA_PHI_ANGLE.value}:
+            if key in {DQDAttributes.SOC_THETA_ANGLE.value, DQDAttributes.SOC_PHI_ANGLE.value}:
                 return np.degrees(value) if isinstance(value, (float, np.floating)) else value
             return value
 

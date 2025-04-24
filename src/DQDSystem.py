@@ -1,10 +1,12 @@
 import os
-from typing import Dict, Any, List, Tuple, Callable
+from typing import Dict, Any, List, Tuple
 
 import numpy as np
 
-from src.base.AttributeInterpreter import AttributeInterpreter, AnnotationsType
-from src.base.DoubleQuantumDot import DoubleQuantumDot, DQDAttributes
+from src.base.DQDAnnotationGenerator import DQDAnnotationGenerator
+from src.base.DQDLabelFormatter import DQDLabelFormatter
+from src.base.DQDParameterInterpreter import DQDParameterInterpreter
+from src.base.DoubleQuantumDot import DoubleQuantumDot
 from src.base.PlotsManager import PlotsManager
 from src.base.SimulationManager import SimulationManager
 from src.base.auxiliaryMethods import getTimestampedFilename, getLatestSimulationFile
@@ -37,21 +39,25 @@ class DQDSystem:
             folder (str): The folder where simulation results will be stored.
         """
         if iterationParameters is not None:
-            self.attributeInterpreter = AttributeInterpreter(fixedParameters, iterationParameters)
-            self.independentArrays = self.attributeInterpreter.getIndependentArrays()
-            self.simulationName = self.attributeInterpreter.getSimulationName()
+            self.parameterInterpreter = DQDParameterInterpreter(fixedParameters, iterationParameters)
+            self.independentArrays = self.parameterInterpreter.getIndependentArrays()
+            self.simulationName = self.parameterInterpreter.getSimulationName()
+            self.labelFormatter = DQDLabelFormatter(self.parameterInterpreter.getIterationFeatures())
         else:
-            self.attributeInterpreter = None
+            self.parameterInterpreter = None
             self.independentArrays = None
             self.simulationName = ""
+            self.labelFormatter = None
 
         self.dqdObject = self._createDqdObject()
+        self.annotationGenerator = DQDAnnotationGenerator(self.dqdObject,
+                                                          self.parameterInterpreter.getIterationFeatures()
+                                                          if self.parameterInterpreter else [])
         self.dependentArrays = None
         self.folder = os.path.join(folder, "results", self.simulationName)
         self.plottingInfo = {}
         self.otherDQD = None
 
-        # Create the folder if it doesn't exist
         if self.simulationName:
             os.makedirs(self.folder, exist_ok=True)
 
@@ -62,8 +68,8 @@ class DQDSystem:
         Returns:
             DoubleQuantumDot: The initialized Double Quantum Dot object.
         """
-        if self.attributeInterpreter is not None:
-            return DoubleQuantumDot(self.attributeInterpreter.fixedParameters)
+        if self.parameterInterpreter is not None:
+            return DoubleQuantumDot(self.parameterInterpreter.getFixedParameters())
         return DoubleQuantumDot()
 
     def _updateDQDParameters(self, *indices: int) -> None:
@@ -73,11 +79,11 @@ class DQDSystem:
         Args:
             indices (int): Indices corresponding to the current point in the simulation grid.
         """
-        updaterFunctions = self.attributeInterpreter.getUpdateFunctions(*indices)
+        updaterFunctions = self.parameterInterpreter.getUpdateFunctions(*indices)
         for updater, attributeName in updaterFunctions:
-            if isinstance(attributeName, tuple):  # Handle tuple of attribute names
+            if isinstance(attributeName, tuple):
                 currentValues = self.dqdObject.getAttributeValue(*attributeName)
-            else:  # Single attribute name
+            else:
                 currentValues = self.dqdObject.getAttributeValue(attributeName)
             updatedParams = updater(currentValues)
             self.dqdObject.setParameters(updatedParams)
@@ -95,14 +101,14 @@ class DQDSystem:
         """
         Runs a simulation of arbitrary dimensionality and stores the results in dependentArrays.
         """
-        if self.attributeInterpreter is None:
+        if self.parameterInterpreter is None:
             if self.dependentArrays is not None:
                 raise RuntimeError("Simulation already computed.")
             raise RuntimeError("DQDSystem is not properly initialized.")
 
-        lenArrays = self.attributeInterpreter.lenIterationArrays()
-        simulationManager = SimulationManager(lenArrays, self._updateDQDParameters, self._simulatePoint)
-        self.dependentArrays = simulationManager.runSimulation()
+        lenArrays = [len(arr) for arr in self.independentArrays]
+        simManager = SimulationManager(lenArrays, self._updateDQDParameters, self._simulatePoint)
+        self.dependentArrays = simManager.runSimulation()
 
     def plotSimulation(self, title: List[str] = None, options: Dict[str, Any] = None,
                        saveData: bool = False, saveFigure: bool = False) -> None:
@@ -118,37 +124,29 @@ class DQDSystem:
         if self.dependentArrays is None:
             raise RuntimeError("runSimulation must be called before plotting results.")
 
-        # Generate title and plotting info
-        if self.attributeInterpreter is not None:
-            title_str = self._fillTitle(self.attributeInterpreter.getTitle(title or []))
+        if self.labelFormatter:
+            title_str = self._fillTitle(self.labelFormatter.getTitle(title or []))
             self.plottingInfo = {
-                "labels": [self.attributeInterpreter.getLabels(), self.attributeInterpreter.getDependentLabels()],
+                "labels": [self.labelFormatter.getLabels(), self.labelFormatter.getDependentLabels()],
                 "title": title_str,
                 "options": options or {}
             }
 
-        # Create PlotsManager instance
         plotsManager = PlotsManager(self.independentArrays, self.dependentArrays, self.plottingInfo)
-
-        # Generate annotations
-        annotations = self._generateAnnotations()
-
-        # Plot and save the figure without annotations
-        plotsManager.plotSimulation()
         baseFilename = getTimestampedFilename()
+
+        if saveData:
+            self._saveData(baseFilename)
+
+        plotsManager.plotSimulation()
         if saveFigure:
             self._saveFigure(plotsManager, baseFilename)
 
-        # Plot and save the figure with annotations
+        annotations = self.annotationGenerator.generateAnnotations()
         if annotations:
             plotsManager.plotSimulation(annotations=annotations)
             if saveFigure:
-                annotatedFilename = f"annotated_{baseFilename}"
-                self._saveFigure(plotsManager, annotatedFilename)
-
-        # Save data if required
-        if saveData:
-            self._saveData(baseFilename)
+                self._saveFigure(plotsManager, f"annotated_{baseFilename}")
 
     def compareSimulationsAndPlot(self, otherSystemDict: 'DQDSystem' = None, title: List[str] = None,
                                   options: Dict[str, Any] = None, saveData: bool = False,
@@ -165,7 +163,6 @@ class DQDSystem:
         """
         if self.dependentArrays is None:
             raise RuntimeError("runSimulation must be called before plotting results.")
-
         if otherSystemDict is None:
             if self.otherDQD is None:
                 raise ValueError("The DQDSystem to compare with must be defined.")
@@ -175,28 +172,27 @@ class DQDSystem:
         if self.otherDQD.dependentArrays is None:
             self.otherDQD.runSimulation()
 
-        subtractedDependentArrays = [
+        subtractedArrays = [
             selfArray - otherArray
             for selfArray, otherArray in zip(self.dependentArrays, self.otherDQD.dependentArrays)
         ]
 
-        if self.attributeInterpreter is not None:
-            title_str = self._fillTitle(self.attributeInterpreter.getTitle(title or []))
+        if self.labelFormatter:
+            title_str = self._fillTitle(self.labelFormatter.getTitle(title or []))
             independentLabels = [
-                f"{self.attributeInterpreter.getLabels()[idx]}-{self.otherDQD.attributeInterpreter.getLabels()[idx]}"
-                for idx in range(len(self.attributeInterpreter.getLabels()))
+                f"{self.labelFormatter.getLabels()[i]}-{self.otherDQD.labelFormatter.getLabels()[i]}"
+                for i in range(len(self.labelFormatter.getLabels()))
             ]
-            dependentLabels = self.attributeInterpreter.getDependentLabels()
+            dependentLabels = self.labelFormatter.getDependentLabels()
             options = options or {}
             options["colormap"] = 'RdBu_r'
-
             self.plottingInfo = {
                 "labels": [independentLabels, dependentLabels],
                 "title": title_str,
                 "options": options
             }
 
-        plotsManager = PlotsManager(self.independentArrays, subtractedDependentArrays, self.plottingInfo)
+        plotsManager = PlotsManager(self.independentArrays, subtractedArrays, self.plottingInfo)
         plotsManager.plotSimulation()
 
         baseFilename = f"comparisonWith_{self.otherDQD.simulationName}_" + getTimestampedFilename()
@@ -224,40 +220,36 @@ class DQDSystem:
         Args:
             baseFilename (str): The base filename for the data file.
         """
-        filePath = self._getDataPathWithoutExtension(baseFilename)
+        filePath = os.path.join(self.folder, "data", f"{self.simulationName}_{baseFilename}")
         os.makedirs(os.path.dirname(filePath), exist_ok=True)
 
-        otherDQDDict = {}
+        otherDQDData = {}
         if self.otherDQD is not None:
-            otherDQDDict = {
+            # Save independent and dependent arrays of otherDQD separately
+            otherIndependentArrays = {f"independentArray_{i}": arr for i, arr in
+                                      enumerate(self.otherDQD.independentArrays)}
+            otherDependentArrays = {f"dependentArray_{i}": arr for i, arr in enumerate(self.otherDQD.dependentArrays)}
+
+            otherDQDData = {
+                "simulationName": self.otherDQD.simulationName,
                 "dqdObject": self.otherDQD.dqdObject.toDict(),
-                "independentArrays": np.array(self.otherDQD.independentArrays, dtype=float),
-                "dependentArrays": np.array(self.otherDQD.dependentArrays, dtype=float),
+                "independentArrays": otherIndependentArrays,
+                "dependentArrays": otherDependentArrays,
                 "plottingInfo": self.otherDQD.plottingInfo,
             }
 
-        dataToSave = {
-            "dqdObject": self.dqdObject.toDict(),
-            "independentArrays": np.array(self.independentArrays, dtype=float),
-            "dependentArrays": np.array(self.dependentArrays, dtype=float),
-            "plottingInfo": self.plottingInfo,
-            "otherDQD": otherDQDDict
-        }
+        # Save independent and dependent arrays separately
+        independentArraysData = {f"independentArray_{i}": arr for i, arr in enumerate(self.independentArrays)}
+        dependentArraysData = {f"dependentArray_{i}": arr for i, arr in enumerate(self.dependentArrays)}
 
-        np.savez_compressed(filePath, **dataToSave)
-
-    def _saveFigure(self, plotsManager: PlotsManager, baseFilename: str) -> None:
-        """
-        Saves the plot figure to a file.
-
-        Args:
-            plotsManager (PlotsManager): The PlotsManager instance used for plotting.
-            baseFilename (str): The base filename for the figure file.
-        """
-        plotsFolder = os.path.join(self.folder, "plots")
-        os.makedirs(plotsFolder, exist_ok=True)
-        figureFilename = os.path.join(plotsFolder, f"{self.simulationName}_{baseFilename}.pdf")
-        plotsManager.saveFig(figureFilename)
+        np.savez_compressed(filePath,
+                            simulationName=self.simulationName,
+                            dqdObject=self.dqdObject.toDict(),
+                            plottingInfo=self.plottingInfo,
+                            iterationFeatures=self.parameterInterpreter.getIterationFeatures(),
+                            otherDQD=otherDQDData,
+                            **independentArraysData,
+                            **dependentArraysData)
 
     @staticmethod
     def loadData(iterationParameters: List[Dict[str, Any]], simulationDate: str = "", folder: str = ".") -> 'DQDSystem':
@@ -272,37 +264,61 @@ class DQDSystem:
         Returns:
             DQDSystem: The loaded DQDSystem instance.
         """
-        dqdSystemAuxiliary = DQDSystem({}, iterationParameters=iterationParameters, folder=folder)
-        dataPath = dqdSystemAuxiliary._getDataPathWithoutExtension("")
+        tempSystem = DQDSystem({}, iterationParameters=iterationParameters, folder=folder)
+        dataPath = os.path.join(tempSystem.folder, "data", f"{tempSystem.simulationName}_")
         simulationFile = getLatestSimulationFile(dataPath) if not simulationDate else dataPath + simulationDate + ".npz"
 
         if not os.path.exists(simulationFile):
-            raise FileNotFoundError(f"The data '{simulationFile}' does not exist.")
+            raise FileNotFoundError(f"Simulation data '{simulationFile}' not found.")
 
         data = np.load(simulationFile, allow_pickle=True)
-        result = {
-            "dqdObject": data["dqdObject"].item(),
-            "independentArrays": data["independentArrays"],
-            "dependentArrays": data["dependentArrays"],
-            "plottingInfo": data["plottingInfo"].item(),
-            "otherDQD": data["otherDQD"].item(),
-        }
 
-        dqdSystemToReturn = DQDSystem()
-        dqdSystemToReturn.dqdObject.fromDict(result["dqdObject"])
-        dqdSystemToReturn.independentArrays = result["independentArrays"]
-        dqdSystemToReturn.dependentArrays = result["dependentArrays"]
-        dqdSystemToReturn.plottingInfo = result["plottingInfo"]
+        # Load independent and dependent arrays
+        independentArrays = [data[f"independentArray_{i}"] for i in range(len(data.files)) if
+                             f"independentArray_{i}" in data]
+        dependentArrays = [data[f"dependentArray_{i}"] for i in range(len(data.files)) if f"dependentArray_{i}" in data]
 
-        if result["otherDQD"] != {}:
-            print(result["otherDQD"])
-            dqdSystemToReturn.otherDQD = DQDSystem()
-            dqdSystemToReturn.otherDQD.dqdObject.fromDict(result["otherDQD"]["dqdObject"])
-            dqdSystemToReturn.otherDQD.independentArrays = result["otherDQD"]["independentArrays"]
-            dqdSystemToReturn.otherDQD.dependentArrays = result["otherDQD"]["dependentArrays"]
-            dqdSystemToReturn.otherDQD.plottingInfo = result["otherDQD"]["plottingInfo"]
+        # Load otherDQD data if present
+        otherDQDData = data.get("otherDQD", None)
+        otherDQD = None
+        if otherDQDData:
+            otherIndependentArrays = [otherDQDData[f"independentArray_{i}"] for i in range(len(otherDQDData))
+                                      if f"independentArray_{i}" in otherDQDData]
+            otherDependentArrays = [otherDQDData[f"dependentArray_{i}"] for i in range(len(otherDQDData))
+                                    if f"dependentArray_{i}" in otherDQDData]
 
-        return dqdSystemToReturn
+            otherDQD = DQDSystem()
+            otherDQD.simulationName = otherDQDData["simulationName"]
+            otherDQD.dqdObject.fromDict(otherDQDData["dqdObject"])
+            otherDQD.independentArrays = otherIndependentArrays
+            otherDQD.dependentArrays = otherDependentArrays
+            otherDQD.plottingInfo = otherDQDData["plottingInfo"]
+
+        # Initialize the system
+        system = DQDSystem()
+        system.simulationName = data["simulationName"].item()
+        system.dqdObject.fromDict(data["dqdObject"].item())
+        system.independentArrays = independentArrays
+        system.dependentArrays = dependentArrays
+        system.plottingInfo = data["plottingInfo"].item()
+        system.labelFormatter = DQDLabelFormatter(data["iterationFeatures"].tolist())
+        system.annotationGenerator = DQDAnnotationGenerator(system.dqdObject, data["iterationFeatures"].tolist())
+        system.otherDQD = otherDQD
+
+        return system
+
+    def _saveFigure(self, plotsManager: PlotsManager, baseFilename: str) -> None:
+        """
+        Saves the plot figure to a file.
+
+        Args:
+            plotsManager (PlotsManager): The PlotsManager instance used for plotting.
+            baseFilename (str): The base filename for the figure file.
+        """
+        plotsFolder = os.path.join(self.folder, "plots")
+        os.makedirs(plotsFolder, exist_ok=True)
+        figureFilename = os.path.join(plotsFolder, f"{self.simulationName}_{baseFilename}.pdf")
+        plotsManager.saveFig(figureFilename)
 
     def _fillTitle(self, titleOptions: Dict[str, Any]) -> str:
         """
@@ -316,12 +332,7 @@ class DQDSystem:
         """
         title_str = titleOptions["title"]
         placeholders = titleOptions["placeholders"]
-
-        values = [
-            self._getAttributeValueFromPlaceholder(placeholder)
-            for placeholder in placeholders
-        ]
-
+        values = [self._getAttributeValueFromPlaceholder(ph) for ph in placeholders]
         return title_str.format(*values)
 
     def _getAttributeValueFromPlaceholder(self, placeholder: str) -> str:
@@ -334,7 +345,7 @@ class DQDSystem:
         Returns:
             str: The value of the attribute as a string, formatted to 2 decimal places if numeric.
         """
-        name, axis, side = self.attributeInterpreter.parseAttributeString(placeholder)
+        name, axis, side = DQDLabelFormatter.parseAttributeString(placeholder)
         value = self.dqdObject.getAttributeValue(name)
 
         if axis is not None and side is not None:
@@ -344,69 +355,9 @@ class DQDSystem:
         elif side is not None:
             value = value[side]
 
-        # Format numeric values to 2 decimal places
         if isinstance(value, (float, np.floating)):
             return f"{value:.2f}"
         elif isinstance(value, (np.ndarray, list)):
             return "[" + ", ".join(f"{v:.2f}" for v in value) + "]"
 
         return str(value)
-
-    def _generateAnnotations(self) -> List[Dict[str, Any]]:
-        """
-        Decides which annotations to generate based on the iteration arrays.
-
-        Returns:
-            List[Dict[str, Any]]: A list of annotations to be passed to PlotsManager.
-        """
-        annotations = []
-
-        if self.attributeInterpreter is not None:
-            annotationsType = self.attributeInterpreter.decideWhichAnnotations()
-            if annotationsType == AnnotationsType.EXPECTED_MODULE_RESONANCES.value:
-                annotations.extend(self._generateExpectedModuleResonancesAnnotations())
-
-        return annotations
-
-    def _generateExpectedModuleResonancesAnnotations(self) -> List[Dict[str, Any]]:
-        """
-        Generates annotations for 'ExpectedModuleResonances'.
-
-        Returns:
-            List[Dict[str, Any]]: A list of annotations with coordinates, colors, and styles.
-        """
-        def generateReferenceLines(detuning: float) -> List[Tuple[Callable[[int], float], str, str]]:
-            """
-            Generates the reference lines for the annotations.
-
-            Args:
-                detuning (float): The detuning value from the DQD object.
-
-            Returns:
-                List[Tuple[Callable[[int], float], str, str]]: A list of line functions, colors, and styles.
-            """
-            return [
-                (lambda n: n + detuning, 'red', 'solid'),
-                (lambda n: n - detuning, 'blue', 'dashed'),
-                (lambda n: n + detuning, 'red', 'dashed'),
-                (lambda n: n - detuning, 'blue', 'dotted'),
-                (lambda n: n + detuning, 'red', 'dotted'),
-            ]
-
-        annotations = []
-        detuning = self.dqdObject.getAttributeValue(DQDAttributes.DETUNING.value)
-
-        # Generate resonance lines
-        n_values = range(0, 2)  # n goes from 0 to 42
-        reference_lines = generateReferenceLines(detuning)
-
-        for n in n_values:
-            for line_func, color, style in reference_lines:
-                annotations.append({
-                    "type": "line",
-                    "data": {"y": line_func(n)},
-                    "style": {"color": color, "linestyle": style, "linewidth": 1},
-                    "axis": 1  # Assuming the magneticFieldM is on the second axis
-                })
-
-        return annotations
