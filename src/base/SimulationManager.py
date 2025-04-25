@@ -1,6 +1,8 @@
+import os
 from typing import Callable, List, Tuple, Any
 
 import numpy as np
+from dotenv import load_dotenv
 from joblib import Parallel, delayed
 
 
@@ -11,39 +13,36 @@ class SimulationManager:
             updateParameters: Callable[..., None],
             simulatePoint: Callable[..., Tuple[Any, ...]]
     ):
-        """
-        Args:
-            lenArrays (List[int]): Lengths of the arrays for each dimension (e.g., [lenX], [lenX, lenY], [lenX, lenY, lenZ]).
-            updateParameters (Callable): Function to update parameters based on indices.
-            simulatePoint (Callable): Function to simulate a point, returning a tuple of results.
-        """
-
         self.lenArrays = lenArrays
         self.updateParameters = updateParameters
         self.simulatePoint = simulatePoint
+        self.parallelEnabled = self._checkParallelEnabled()
+
+    @staticmethod
+    def _checkParallelEnabled() -> bool:
+        """
+        Checks whether parallel execution should be enabled based on an environment variable.
+        Set DQD_PARALLEL=0 to disable.
+        """
+        load_dotenv()
+        envVar = int(os.getenv("DQD_PARALLEL", "1").strip())
+        return bool(envVar)
 
     def runSimulation(self) -> List[np.ndarray]:
-        """
-        Runs the simulation based on the dimensionality of lenArrays.
-
-        Returns:
-            List[np.ndarray]: A list of arrays, one for each value returned by simulatePoint.
-        """
         gridShape = tuple(self.lenArrays)
 
-        # Run simulations in parallel
-        results = Parallel(n_jobs=-1)(
-            delayed(self._simulatePoint)(*indices)
-            for indices in np.ndindex(gridShape)
-        )
+        if self.parallelEnabled:
+            results = Parallel(n_jobs=-1)(
+                delayed(self._simulatePoint)(*indices)
+                for indices in np.ndindex(gridShape)
+            )
+        else:
+            results = [self._simulatePoint(*indices) for indices in np.ndindex(gridShape)]
+            print("No parallel execution is taking place.")
 
-        # Determine the number of outputs from simulatePoint
         numOutputs = len(results[0]) - len(gridShape)
-
-        # Initialize result arrays
         resultArrays = [np.zeros(gridShape) for _ in range(numOutputs)]
 
-        # Populate result arrays
         for result in results:
             indices = result[:len(gridShape)]
             outputs = result[len(gridShape):]
@@ -53,15 +52,6 @@ class SimulationManager:
         return resultArrays
 
     def _simulatePoint(self, *indices: int) -> Tuple[int, ...]:
-        """
-        Simulates a single point in the grid.
-
-        Args:
-            indices (int): Indices for the current point in the grid.
-
-        Returns:
-            Tuple[int, ...]: Indices and the results of simulatePoint.
-        """
         self.updateParameters(*indices)
         outputs = self.simulatePoint()
         return (*indices, *outputs)
