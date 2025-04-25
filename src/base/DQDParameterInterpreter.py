@@ -198,9 +198,6 @@ class DQDParameterInterpreter:
         elif attribute == DQDAttributes.MAGNETIC_FIELD.value:
             def updater(currentValue):
                 return {attribute: self._adjustMagneticField(np.copy(currentValue), newValue, axis)}
-        elif attribute == DQDAttributes.G_FACTOR.value:
-            def updater(currentValue):
-                return {attribute: self._adjustGFactor(np.copy(currentValue), newValue, axis, side)}
         elif attribute == NoAttributeParameters.SCAN_ANGLE.value:
             def updater(currentValues):
                 zeemanValue, magneticFieldValue = self._adjustScanAngleDict(np.copy(currentValues[0]),
@@ -279,26 +276,6 @@ class DQDParameterInterpreter:
             completeValue = direction * newValue
         else:
             completeValue[axis] = newValue
-        return completeValue
-
-    def _adjustGFactor(self, completeValue: np.ndarray, newValue: float, axis: Optional[int],
-                       side: Optional[int]) -> np.ndarray:
-        """
-        Adjusts the g-factor values for the specified axis and side.
-
-        Args:
-            completeValue (np.ndarray): The current g-factor values.
-            newValue (float): The new value to set.
-            axis (Optional[int]): The axis to adjust.
-            side (Optional[int]): The side to adjust (0 or 1), or None for both sides.
-
-        Returns:
-            np.ndarray: The adjusted g-factor values.
-        """
-        if side is None:
-            completeValue[:, axis] = newValue
-        else:
-            completeValue[side, axis] = newValue
         return completeValue
 
     def _adjustScanAngleDict(self, completeMagneticField: np.ndarray, completeGFactor: np.ndarray,

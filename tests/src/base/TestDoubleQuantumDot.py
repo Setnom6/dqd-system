@@ -35,8 +35,8 @@ class TestDoubleQuantumDot:
         assert np.all(dqd.magneticField == np.zeros(3))
         assert np.all(dqd.OME == np.zeros((2, 3)))
         assert dqd.factorBetweenOMEAndZeeman == 0.5
-        assert dqd.alphaThetaAngle == pytest.approx(np.pi / 2)
-        assert dqd.alphaPhiAngle == 0.0
+        assert dqd.socThetaAngle == pytest.approx(np.pi / 2)
+        assert dqd.socPhiAngle == 0.0
         assert dqd.sumCurrent is None
         assert dqd.polarity is None
 
