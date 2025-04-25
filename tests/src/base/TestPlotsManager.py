@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import numpy as np
 
-from src.PlotsOptionsManager import PlotOptionsManager
+from src.PlotOptionsManager import PlotOptionsManager
 from src.base.PlotsManager import PlotsManager
 
 

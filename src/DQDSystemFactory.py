@@ -3,7 +3,7 @@ from typing import Dict, Any, List
 import numpy as np
 
 from src.DQDSystem import DQDSystem
-from src.PlotsOptionsManager import PlotOptionsManager
+from src.PlotOptionsManager import PlotOptionsManager
 from src.base.DQDParameterInterpreter import NoAttributeParameters, DQDParameterInterpreter
 from src.base.DoubleQuantumDot import DQDAttributes
 
@@ -89,6 +89,12 @@ class DQDSystemFactory:
     def zeemanZ(xArray: np.ndarray) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.ZEEMAN.value + "Z"}
+        ])
+
+    @staticmethod
+    def detuning(xArray: np.ndarray) -> DQDSystem:
+        return DQDSystemFactory.create([
+            {"array": xArray, "features": DQDAttributes.DETUNING.value}
         ])
 
     @staticmethod

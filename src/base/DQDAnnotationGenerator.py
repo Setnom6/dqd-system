@@ -97,7 +97,9 @@ class DQDAnnotationGenerator:
             value = 2 * (n + delta if sign == '+' else n - delta) / denom
             return value
 
-        for axis in [DQDParameterInterpreter.parseAttributeString(feature)[1] for feature in self.iterationFeatures]:
+        axisIdx = [DQDParameterInterpreter.parseAttributeString(feature)[1] for feature in self.iterationFeatures]
+
+        for axis in axisIdx:
             for n, sign, spinFlip in product(range(5), ['+', '-'], [False, True]):
                 v = getPoint(axis, n, sign, spinFlip)
                 if v is not None:
@@ -110,8 +112,8 @@ class DQDAnnotationGenerator:
 
         annotations = []
 
-        for idx in range(2):
-            for point in points[idx]:
+        for idx, axis in enumerate(axisIdx):
+            for point in points[axis]:
                 color, marker = style(point['n'], point['sign'], point['flip'])
                 coord = {"x": point['value'], "y": 0} if idx == 0 else {"x": 0, "y": point['value']}
                 annotations.append({
