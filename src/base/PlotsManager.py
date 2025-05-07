@@ -78,10 +78,10 @@ class PlotsManager:
 
         def formatFunc(x, _):
             if abs(x) < 1e-3 or abs(x) > 1e4:
-                formatted = f"{x:.3e}"  # Scientific notation with 3 decimals
+                formatted = f"{x:.2e}"  # Scientific notation with 3 decimals
                 # Remove e+00 if present
                 return formatted.replace("e+00", "")
-            return f"{x:.3f}"  # Three decimals
+            return f"{x:.2f}"  # Three decimals
 
         colorbar.formatter = FuncFormatter(formatFunc)
         colorbar.update_ticks()

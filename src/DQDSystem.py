@@ -57,6 +57,7 @@ class DQDSystem:
         self.folder = os.path.join(folder, "results", self.simulationName)
         self.plottingInfo = {}
         self.otherDQD = None
+        self.iterationFeatures = None
 
         if self.simulationName:
             os.makedirs(self.folder, exist_ok=True)
@@ -246,7 +247,7 @@ class DQDSystem:
                             simulationName=self.simulationName,
                             dqdObject=self.dqdObject.toDict(),
                             plottingInfo=self.plottingInfo,
-                            iterationFeatures=self.parameterInterpreter.getIterationFeatures(),
+                            iterationFeatures=self.parameterInterpreter.getIterationFeatures() if self.parameterInterpreter is not None else self.iterationFeatures,
                             otherDQD=otherDQDData,
                             **independentArraysData,
                             **dependentArraysData)
@@ -301,9 +302,11 @@ class DQDSystem:
         system.independentArrays = independentArrays
         system.dependentArrays = dependentArrays
         system.plottingInfo = data["plottingInfo"].item()
+        system.iterationFeatures = data["iterationFeatures"].tolist()
         system.labelFormatter = DQDLabelFormatter(data["iterationFeatures"].tolist())
         system.annotationGenerator = DQDAnnotationGenerator(system.dqdObject, data["iterationFeatures"].tolist())
         system.otherDQD = otherDQD
+        system.folder = os.path.join(folder, "results", data["simulationName"].item())
 
         return system
 

@@ -322,6 +322,8 @@ class DoubleQuantumDot:
             for key, value in self.__dict__.items()
             if not key.startswith("_")
         }
+        dictToReturn["sumCurrent"] = None
+        dictToReturn["polarity"] = None
         return dictToReturn
 
     def fromDict(self, dictToSet: Dict[str, Any]) -> None:

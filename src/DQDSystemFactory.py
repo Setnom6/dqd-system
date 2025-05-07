@@ -67,105 +67,139 @@ class DQDSystemFactory:
             DQDSystemFactory.defaultFixedParameters[paramName] = value
 
     @staticmethod
-    def create(iterationParameters: List[Dict[str, Any]]) -> DQDSystem:
+    def create(iterationParameters: List[Dict[str, Any]], loadData: bool = False) -> DQDSystem:
         fixedParameters = DQDSystemFactory.defaultFixedParameters.copy()
-        return DQDSystem(fixedParameters, iterationParameters)
+        if not loadData:
+            dqdSystem = DQDSystem(fixedParameters, iterationParameters)
+            dqdSystem.runSimulation()
+        else:
+            dqdSystem = DQDSystem.loadData(iterationParameters)
+        return dqdSystem
 
     # --- Predefined systems ---
 
     @staticmethod
-    def zeemanX(xArray: np.ndarray) -> DQDSystem:
+    def zeemanX(xArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.ZEEMAN.value + "X"}
-        ])
+        ], loadData)
 
     @staticmethod
-    def zeemanY(xArray: np.ndarray) -> DQDSystem:
+    def zeemanY(xArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.ZEEMAN.value + "Y"}
-        ])
+        ], loadData)
 
     @staticmethod
-    def zeemanZ(xArray: np.ndarray) -> DQDSystem:
+    def zeemanZ(xArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.ZEEMAN.value + "Z"}
-        ])
+        ], loadData)
 
     @staticmethod
-    def detuning(xArray: np.ndarray) -> DQDSystem:
+    def detuning(xArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.DETUNING.value}
-        ])
+        ], loadData)
 
     @staticmethod
-    def detuningvsZeemanX(xArray: np.ndarray, yArray: np.ndarray) -> DQDSystem:
+    def detuningvsZeemanX(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.DETUNING.value},
             {"array": yArray, "features": DQDAttributes.ZEEMAN.value + "X"},
-        ])
+        ], loadData)
 
     @staticmethod
-    def detuningvsZeemanY(xArray: np.ndarray, yArray: np.ndarray) -> DQDSystem:
+    def detuningvsZeemanY(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.DETUNING.value},
             {"array": yArray, "features": DQDAttributes.ZEEMAN.value + "Y"},
-        ])
+        ], loadData)
 
     @staticmethod
-    def detuningvsZeemanZ(xArray: np.ndarray, yArray: np.ndarray) -> DQDSystem:
+    def detuningvsZeemanZ(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.DETUNING.value},
             {"array": yArray, "features": DQDAttributes.ZEEMAN.value + "Z"},
-        ])
+        ], loadData)
 
     @staticmethod
-    def zeemanXvsZeemanY(xArray: np.ndarray, yArray: np.ndarray) -> DQDSystem:
+    def detuningvsOneZeeman(xArray: np.ndarray, yArray: np.ndarray, axis: int, loadData: bool = False) -> DQDSystem:
+        axes = ["X", "Y", "Z"]
+        return DQDSystemFactory.create([
+            {"array": xArray, "features": DQDAttributes.DETUNING.value},
+            {"array": yArray, "features": DQDAttributes.ZEEMAN.value + axes[axis]},
+        ], loadData)
+
+    @staticmethod
+    def zeemanXvsZeemanY(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.ZEEMAN.value + "X"},
             {"array": yArray, "features": DQDAttributes.ZEEMAN.value + "Y"},
-        ])
+        ], loadData)
 
     @staticmethod
-    def zeemanXvsZeemanZ(xArray: np.ndarray, yArray: np.ndarray) -> DQDSystem:
+    def zeemanXvsZeemanZ(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.ZEEMAN.value + "X"},
             {"array": yArray, "features": DQDAttributes.ZEEMAN.value + "Z"},
-        ])
+        ], loadData)
 
     @staticmethod
-    def zeemanYvsZeemanZ(xArray: np.ndarray, yArray: np.ndarray) -> DQDSystem:
+    def zeemanYvsZeemanZ(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.ZEEMAN.value + "Y"},
             {"array": yArray, "features": DQDAttributes.ZEEMAN.value + "Z"},
-        ])
+        ], loadData)
 
     @staticmethod
-    def magneticFieldXvsMagneticFieldY(xArray: np.ndarray, yArray: np.ndarray) -> DQDSystem:
+    def detuningvsMagneticFieldX(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
+        return DQDSystemFactory.create([
+            {"array": xArray, "features": DQDAttributes.DETUNING.value},
+            {"array": yArray, "features": DQDAttributes.MAGNETIC_FIELD.value + "X"},
+        ], loadData)
+
+    @staticmethod
+    def detuningvsMagneticFieldY(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
+        return DQDSystemFactory.create([
+            {"array": xArray, "features": DQDAttributes.DETUNING.value},
+            {"array": yArray, "features": DQDAttributes.MAGNETIC_FIELD.value + "Y"},
+        ], loadData)
+
+    @staticmethod
+    def detuningvsMagneticFieldZ(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
+        return DQDSystemFactory.create([
+            {"array": xArray, "features": DQDAttributes.DETUNING.value},
+            {"array": yArray, "features": DQDAttributes.MAGNETIC_FIELD.value + "Z"},
+        ], loadData)
+
+    @staticmethod
+    def magneticFieldXvsMagneticFieldY(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.MAGNETIC_FIELD.value + "X"},
             {"array": yArray, "features": DQDAttributes.MAGNETIC_FIELD.value + "Y"},
-        ])
+        ], loadData)
 
     @staticmethod
-    def magneticFieldXvsMagneticFieldZ(xArray: np.ndarray, yArray: np.ndarray) -> DQDSystem:
+    def magneticFieldXvsMagneticFieldZ(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.MAGNETIC_FIELD.value + "X"},
             {"array": yArray, "features": DQDAttributes.MAGNETIC_FIELD.value + "Z"},
-        ])
+        ], loadData)
 
     @staticmethod
-    def magneticFieldYvsMagneticFieldZ(xArray: np.ndarray, yArray: np.ndarray) -> DQDSystem:
+    def magneticFieldYvsMagneticFieldZ(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.MAGNETIC_FIELD.value + "Y"},
             {"array": yArray, "features": DQDAttributes.MAGNETIC_FIELD.value + "Z"},
-        ])
+        ], loadData)
 
     @staticmethod
-    def scanAngleVsMagneticFieldModule(xArray: np.ndarray, yArray: np.ndarray) -> DQDSystem:
+    def scanAngleVsMagneticFieldModule(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         fixedParameters = DQDSystemFactory.defaultFixedParameters.copy()
         fixedParameters[DQDAttributes.MAGNETIC_FIELD.value] = [1.0, 1.0, 0.0]
 
         return DQDSystem(fixedParameters, [
             {"array": xArray, "features": NoAttributeParameters.SCAN_ANGLE.value},
             {"array": yArray, "features": DQDAttributes.MAGNETIC_FIELD.value + "M"}
-        ])
+        ], loadData)
