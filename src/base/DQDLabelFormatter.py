@@ -53,17 +53,16 @@ class DQDLabelFormatter:
     def getTitle(self, titleOptions: List[str]) -> Dict[str, str]:
         titleParts = []
         placeholders = []
-
         for feature in titleOptions:
-            formattedLabel = self.formatLatexLabel(feature)
             name, _, _ = self.parseAttributeString(feature)
             if name in [attr.value for attr in DQDAttributes]:
+                formattedLabel = self.formatLatexLabel(feature)
                 titlePart = f"{formattedLabel} = {{}}"
                 placeholders.append(feature)
+                if name in self.DEGREES:
+                    titlePart += "º"
             else:
-                titlePart = formattedLabel
-            if name in self.DEGREES:
-                titlePart += "º"
+                titlePart = feature
             titleParts.append(titlePart)
         return {"title": ", ".join(titleParts), "placeholders": placeholders}
 
