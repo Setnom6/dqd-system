@@ -36,6 +36,7 @@ class PlotOptionsManager:
             "plotOnly": None,  # Index of the dependent array to plot (only one)
             "draw1DLines": None,  # Axis index for drawing 1D lines in 2D plots
             "gaussianFilter": False,  # Apply Gaussian filter to 2D data
+            "annotate": False,  # Apply possible annotations
         }
         self.options = self.default_options.copy()
 

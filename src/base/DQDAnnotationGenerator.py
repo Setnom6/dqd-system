@@ -1,5 +1,5 @@
 from itertools import product
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List, Union, Optional
 
 import numpy as np
 
@@ -8,12 +8,14 @@ from src.base.DoubleQuantumDot import DQDAttributes, DoubleQuantumDot
 
 
 class DQDAnnotationGenerator:
-    def __init__(self, dqdObject: DoubleQuantumDot, iterationFeatures: Union[str, List[str]]):
+    def __init__(self, dqdObject: DoubleQuantumDot, iterationFeatures: Union[str, List[str]],
+                 independentArrays: Optional[List[np.ndarray]] = None):
         self.dqdObject = dqdObject
         self.iterationFeatures = (
             iterationFeatures if isinstance(iterationFeatures, list)
             else iterationFeatures.split("_")
         )
+        self.independentArrays = independentArrays
 
     def generateAnnotations(self) -> List[Dict[str, Any]]:
         annotationType = self._decideAnnotationType()
@@ -21,6 +23,8 @@ class DQDAnnotationGenerator:
             return self._expectedModuleResonances()
         elif annotationType == "ExpectedGTensorResonances":
             return self._expectedGTensorResonances()
+        elif annotationType == "SpinConservingAndSpinFlipDetuningMagnetic":
+            return self._spinConservingAndSpinFlipDetuningMagnetic()
         return []
 
     def _decideAnnotationType(self) -> str:
@@ -37,6 +41,13 @@ class DQDAnnotationGenerator:
         for a, b in pairs:
             if a in self.iterationFeatures and b in self.iterationFeatures:
                 return "ExpectedGTensorResonances"
+
+        if (
+                len(self.iterationFeatures) == 2 and
+                self.iterationFeatures[0] == "detuning" and
+                self.iterationFeatures[1] in ["magneticFieldX", "magneticFieldY", "magneticFieldZ"]
+        ):
+            return "SpinConservingAndSpinFlipDetuningMagnetic"
 
         return ""
 
@@ -121,6 +132,133 @@ class DQDAnnotationGenerator:
                     "data": coord,
                     "style": {"color": color, "marker": marker, "markersize": 5},
                     "axis": idx
+                })
+
+        return annotations
+
+    def _spinConservingAndSpinFlipDetuningMagnetic(self) -> List[Dict[str, Any]]:
+        if self.independentArrays is None:
+            return []
+
+        gLeft, gRight = self.dqdObject.getAttributeValue(DQDAttributes.G_FACTOR.value)
+        fieldStr = self.iterationFeatures[1]
+        detuningStr = self.iterationFeatures[0]
+
+        axisMap = {
+            "magneticFieldX": np.array([1, 0, 0]),
+            "magneticFieldY": np.array([0, 1, 0]),
+            "magneticFieldZ": np.array([0, 0, 1])
+        }
+
+        componentIdxMap = {
+            "magneticFieldX": 0,
+            "magneticFieldY": 1,
+            "magneticFieldZ": 2
+        }
+
+        if fieldStr not in axisMap:
+            return []
+
+        direction = axisMap[fieldStr]
+        componentIdx = componentIdxMap[fieldStr]
+
+        deltaVals = np.linspace(self.independentArrays[0][0], self.independentArrays[0][-1], num=300)
+        fieldVals = np.linspace(self.independentArrays[1][0], self.independentArrays[1][-1], num=300)
+
+        # Preparar mapa de colores para los 4 tipos
+        colorMap = {
+            "diffPlus": "darkblue",
+            "diffMinus": "lightblue",
+            "sumPlus": "red",
+            "sumMinus": "orange"
+        }
+
+        # Línea distinta por n
+        lineStyles = ['-', '--', '-.', ':', (0, (3, 5, 1, 5)), (0, (1, 1))]
+
+        eps = 0.05  # tolerancia
+        annotations = []
+        groupedLines = {}  # (color, linestyle) -> list of (delta, Bmag)
+
+        for delta in deltaVals:
+            for Bmag in fieldVals:
+                Bvec = Bmag * direction
+                gLeftProj = gLeft @ Bvec
+                gRightProj = gRight @ Bvec
+                gDiffProj = gRightProj - gLeftProj
+                gSumProj = gRightProj + gLeftProj
+
+                diffComp = abs(gDiffProj[componentIdx])
+                sumComp = abs(gSumProj[componentIdx])
+
+                for n in range(5):  # ajusta si quieres más o menos líneas
+                    targetPlus = 2 * (n + delta)
+                    targetMinus = 2 * (n - delta)
+                    style = lineStyles[n % len(lineStyles)]
+
+                    # 1. Azul oscuro
+                    if abs(diffComp - targetPlus) < eps:
+                        groupedLines.setdefault(("darkblue", style), []).append((delta, Bmag))
+                    # 2. Azul claro
+                    if abs(diffComp - targetMinus) < eps:
+                        groupedLines.setdefault(("lightblue", style), []).append((delta, Bmag))
+                    # 3. Rojo
+                    if abs(sumComp - targetPlus) < eps:
+                        groupedLines.setdefault(("red", style), []).append((delta, Bmag))
+                    # 4. Naranja
+                    if abs(sumComp - targetMinus) < eps:
+                        groupedLines.setdefault(("orange", style), []).append((delta, Bmag))
+
+        # Detecta qué eje es X
+        xIsDelta = (detuningStr.lower() == "detuning")
+
+        # Límite de salto para dividir líneas (relativo al tamaño del grafo)
+        deltaValsSorted = np.sort(deltaVals)
+        fieldValsSorted = np.sort(fieldVals)
+        deltaStep = np.min(np.diff(deltaValsSorted)) if len(deltaValsSorted) > 1 else 0.1
+        fieldStep = np.min(np.diff(fieldValsSorted)) if len(fieldValsSorted) > 1 else 0.1
+        maxJump = 2 * max(deltaStep, fieldStep)
+
+        for (color, linestyle), points in groupedLines.items():
+            # Ordenar
+            if xIsDelta:
+                points = sorted(points, key=lambda p: p[0])
+            else:
+                points = sorted(points, key=lambda p: p[1])
+
+            # Segmentar
+            segment = [points[0]]
+            for i in range(1, len(points)):
+                dx = points[i][0] - points[i - 1][0]
+                dy = points[i][1] - points[i - 1][1]
+                if np.hypot(dx, dy) > maxJump:
+                    if len(segment) > 1:
+                        xVals, yVals = zip(*segment)
+                        annotations.append({
+                            "type": "line",
+                            "data": {"x": xVals, "y": yVals},
+                            "style": {
+                                "color": color,
+                                "linestyle": linestyle,
+                                "linewidth": 1
+                            },
+                            "absoluteCoordinates": True
+                        })
+                    segment = []
+                segment.append(points[i])
+
+            # Último segmento
+            if len(segment) > 1:
+                xVals, yVals = zip(*segment)
+                annotations.append({
+                    "type": "line",
+                    "data": {"x": xVals, "y": yVals},
+                    "style": {
+                        "color": color,
+                        "linestyle": linestyle,
+                        "linewidth": 1
+                    },
+                    "absoluteCoordinates": True
                 })
 
         return annotations

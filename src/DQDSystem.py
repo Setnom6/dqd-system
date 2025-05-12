@@ -52,6 +52,8 @@ class DQDSystem:
         self.dqdObject = self._createDqdObject()
         self.annotationGenerator = DQDAnnotationGenerator(self.dqdObject,
                                                           self.parameterInterpreter.getIterationFeatures()
+                                                          if self.parameterInterpreter else [],
+                                                          self.parameterInterpreter.getIndependentArrays()
                                                           if self.parameterInterpreter else [])
         self.dependentArrays = None
         self.folder = os.path.join(folder, "results", self.simulationName)
@@ -144,7 +146,7 @@ class DQDSystem:
             self._saveFigure(plotsManager, baseFilename)
 
         annotations = self.annotationGenerator.generateAnnotations()
-        if annotations:
+        if annotations and options["annotate"]:
             plotsManager.plotSimulation(annotations=annotations)
             if saveFigure:
                 self._saveFigure(plotsManager, f"annotated_{baseFilename}")

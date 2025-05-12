@@ -88,7 +88,7 @@ class PlotsManager:
 
     def _drawAnnotations(self, ax, annotations: List[Dict[str, Any]]) -> None:
         """
-        Draws annotations on the given axis, ensuring they are within the axis limits.
+        Draws annotations on the given axis, supporting both axis-aligned and full-coordinate annotations.
 
         Args:
             ax: The axis to draw the annotations on.
@@ -102,20 +102,32 @@ class PlotsManager:
             data = annotation.get("data")
             style = annotation.get("style", {})
             axis = annotation.get("axis", None)
+            useAbsoluteCoordinates = annotation.get("absoluteCoordinates", False)
 
             if annotationType == "line":
-                # Draw horizontal or vertical lines if within limits
-                if "y" in data and ylim[0] <= data["y"] <= ylim[1]:
+                if useAbsoluteCoordinates:
+                    # Dibujo general con puntos (x, y)
+                    xVals = data.get("x", [])
+                    yVals = data.get("y", [])
+                    if len(xVals) == len(yVals) and len(xVals) > 1:
+                        ax.plot(xVals, yVals, **style)
+                elif "y" in data and ylim[0] <= data["y"] <= ylim[1]:
                     ax.axhline(y=data["y"], **style)
                 elif "x" in data and xlim[0] <= data["x"] <= xlim[1]:
                     ax.axvline(x=data["x"], **style)
 
-            elif annotationType == "point" and axis is not None:
-                # Draw points based on the specified axis
-                if axis == 0 and xlim[0] <= data["x"] <= xlim[1]:  # Point on X-axis
-                    ax.plot(data["x"], 0, **style)
-                elif axis == 1 and ylim[0] <= data["y"] <= ylim[1]:  # Point on Y-axis
-                    ax.plot(0, data["y"], **style)
+            elif annotationType == "point":
+                if useAbsoluteCoordinates:
+                    # Full coordinates
+                    x, y = data.get("x"), data.get("y")
+                    if xlim[0] <= x <= xlim[1] and ylim[0] <= y <= ylim[1]:
+                        ax.plot(x, y, **style)
+                elif axis is not None:
+                    # Axis-aligned points
+                    if axis == 0 and xlim[0] <= data["x"] <= xlim[1]:
+                        ax.plot(data["x"], 0, **style)
+                    elif axis == 1 and ylim[0] <= data["y"] <= ylim[1]:
+                        ax.plot(0, data["y"], **style)
 
     def _setTitleAndAdjust(self, titleText: str) -> None:
         """
