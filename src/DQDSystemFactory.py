@@ -67,6 +67,16 @@ class DQDSystemFactory:
             DQDSystemFactory.defaultFixedParameters[paramName] = value
 
     @staticmethod
+    def getParameterValue(paramName: str) -> Any:
+        base, _, side = DQDParameterInterpreter.parseAttributeString(paramName)
+        if side == 0:
+            return DQDSystemFactory.defaultFixedParameters[base][0]
+        elif side == 1:
+            return DQDSystemFactory.defaultFixedParameters[base][1]
+        else:
+            return DQDSystemFactory.defaultFixedParameters[paramName]
+
+    @staticmethod
     def create(iterationParameters: List[Dict[str, Any]], loadData: bool = False) -> DQDSystem:
         fixedParameters = DQDSystemFactory.defaultFixedParameters.copy()
         if not loadData:
@@ -171,6 +181,15 @@ class DQDSystemFactory:
         return DQDSystemFactory.create([
             {"array": xArray, "features": DQDAttributes.DETUNING.value},
             {"array": yArray, "features": DQDAttributes.MAGNETIC_FIELD.value + "Z"},
+        ], loadData)
+
+    @staticmethod
+    def detuningvsOneMagneticField(xArray: np.ndarray, yArray: np.ndarray, axis: int,
+                                   loadData: bool = False) -> DQDSystem:
+        axes = ["X", "Y", "Z"]
+        return DQDSystemFactory.create([
+            {"array": xArray, "features": DQDAttributes.DETUNING.value},
+            {"array": yArray, "features": DQDAttributes.MAGNETIC_FIELD.value + axes[axis]},
         ], loadData)
 
     @staticmethod
