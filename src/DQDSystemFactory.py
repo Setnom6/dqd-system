@@ -217,8 +217,13 @@ class DQDSystemFactory:
     def scanAngleVsMagneticFieldModule(xArray: np.ndarray, yArray: np.ndarray, loadData: bool = False) -> DQDSystem:
         fixedParameters = DQDSystemFactory.defaultFixedParameters.copy()
         fixedParameters[DQDAttributes.MAGNETIC_FIELD.value] = [1.0, 1.0, 0.0]
+        iterationParameters = [{"array": xArray, "features": NoAttributeParameters.SCAN_ANGLE.value},
+                               {"array": yArray, "features": DQDAttributes.MAGNETIC_FIELD.value + "M"}]
 
-        return DQDSystem(fixedParameters, [
-            {"array": xArray, "features": NoAttributeParameters.SCAN_ANGLE.value},
-            {"array": yArray, "features": DQDAttributes.MAGNETIC_FIELD.value + "M"}
-        ], loadData)
+        if not loadData:
+            dqdSystem = DQDSystem(fixedParameters, iterationParameters)
+            dqdSystem.runSimulation()
+        else:
+            dqdSystem = DQDSystem.loadData(iterationParameters)
+
+        return dqdSystem
