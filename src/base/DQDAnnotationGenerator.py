@@ -53,7 +53,7 @@ class DQDAnnotationGenerator:
 
     def _expectedModuleResonances(self) -> List[Dict[str, Any]]:
         detuning = self.dqdObject.getAttributeValue(DQDAttributes.DETUNING.value)
-        nValues = range(0, 2)
+        nValues = range(0, 3)
         annotations = []
 
         def referenceLines(d):

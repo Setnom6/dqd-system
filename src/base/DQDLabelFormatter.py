@@ -36,7 +36,7 @@ class DQDLabelFormatter:
         DQDAttributes.MAGNETIC_FIELD.value,
     ]
 
-    DIVIDED_BY_MUB = [DQDAttributes.MAGNETIC_FIELD.value]
+    MULTIPLIED_BY_MUB = [DQDAttributes.MAGNETIC_FIELD.value]
 
     DEGREES = [DQDAttributes.SOC_THETA_ANGLE.value, DQDAttributes.SOC_PHI_ANGLE.value]
 
@@ -75,10 +75,10 @@ class DQDLabelFormatter:
         if side is not None:
             symbol += r"$_{{" + self.SIDE_SYMBOLS[side] + "}}$"
 
-        if name in self.DIVIDED_BY_OMEGA and name in self.DIVIDED_BY_MUB:
-            symbol += "/" + self.LATEX_SYMBOLS["acFrequency"] + self.LATEX_SYMBOLS["muB"]
-        elif name in self.DIVIDED_BY_MUB:
-            symbol += "/" + self.LATEX_SYMBOLS["muB"]
+        if name in self.DIVIDED_BY_OMEGA and name in self.MULTIPLIED_BY_MUB:
+            symbol = self.LATEX_SYMBOLS["muB"] + symbol + "/" + self.LATEX_SYMBOLS["acFrequency"]
+        elif name in self.MULTIPLIED_BY_MUB:
+            symbol = self.LATEX_SYMBOLS["muB"] + symbol
         elif name in self.DIVIDED_BY_OMEGA:
             symbol += "/" + self.LATEX_SYMBOLS["acFrequency"]
 

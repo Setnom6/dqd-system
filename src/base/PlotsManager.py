@@ -6,6 +6,8 @@ from matplotlib.colors import LogNorm
 from matplotlib.ticker import FuncFormatter
 from scipy.ndimage import gaussian_filter
 
+from src.base.auxiliaryMethods import formatNumberListSmart
+
 
 class PlotsManager:
     def __init__(self, independentArrays: List[np.ndarray], dependentArrays: List[np.ndarray],
@@ -58,18 +60,25 @@ class PlotsManager:
 
     def _formatTicks(self, ax) -> None:
         """
-        Formats the ticks on the axes to have at most 2 decimals or scientific notation.
+        Formats the ticks on the axes to have the format defined in formatNumberListSmart
         """
 
-        def formatFunc(x, _):
-            if abs(x) < 1e-2 or abs(x) > 1e3:
-                formatted = f"{x:.2e}"
-                # Remove e+00 if present
-                return formatted.replace("e+00", "")
-            return f"{x:.2f}"  # Two decimals
+        def makeFormatter(axis):
+            def formatterFunc(x, _):
+                ticks = axis.get_ticklocs()
+                # Usar el mismo formato para todos los ticks
+                formatted = formatNumberListSmart(ticks)
+                tickMap = dict(zip(ticks, formatted))
+                return tickMap.get(x, f"{x:.3f}")
 
-        ax.xaxis.set_major_formatter(FuncFormatter(formatFunc))
-        ax.yaxis.set_major_formatter(FuncFormatter(formatFunc))
+            return FuncFormatter(formatterFunc)
+
+        if hasattr(ax, 'xaxis'):
+            ax.xaxis.set_major_formatter(makeFormatter(ax.xaxis))
+        if hasattr(ax, 'yaxis'):
+            ax.yaxis.set_major_formatter(makeFormatter(ax.yaxis))
+        if hasattr(ax, 'zaxis'):
+            ax.zaxis.set_major_formatter(makeFormatter(ax.zaxis))
 
     def _formatColorbar(self, colorbar) -> None:
         """
@@ -173,15 +182,21 @@ class PlotsManager:
 
     def _plot2D(self, annotations: List[Dict[str, Any]], indices: List[int]) -> None:
         """
-        Handles 2D plotting.
+        Handles 2D plotting or reduces to 1D lines if 'draw1DLines' is specified.
         """
+        options = self.plottingInfo.get("options", {})
+        draw1DLines = options.get("draw1DLines", None)
+
+        if draw1DLines is not None:
+            self._plot1DLinesFrom2D(draw1DLines, annotations, indices)
+            return
+
         self.fig, axes = plt.subplots(1, len(indices), figsize=(5 * len(indices), 4), constrained_layout=True)
         if len(indices) == 1:
             axes = [axes]
 
         xArray, yArray = self.independentArrays
         X, Y = np.meshgrid(xArray, yArray)
-        options = self.plottingInfo.get("options", {})
         globalColormap = options.get("colormap", None)
         applyGaussianFilter = options.get("gaussianFilter", False)
         logScale = options.get("logColorBar", False)
@@ -220,6 +235,52 @@ class PlotsManager:
             ax.set_title(f"{self.plottingInfo['labels'][1][i]}")
             self._apply_options(ax, i, is2D=True)
 
+        self._setTitleAndAdjust(self.plottingInfo["title"])
+
+        for ax in axes:
+            self._formatTicks(ax)
+        plt.show()
+
+    def _plot1DLinesFrom2D(self, axisToIterate: int, annotations: List[Dict[str, Any]], indices: List[int]) -> None:
+        """
+        Transforma datos 2D en múltiples líneas 1D dependiendo del valor de 'draw1DLines'.
+
+        Args:
+            axisToIterate (int): 0 o 1, determina qué parámetro usar como eje de iteración (líneas).
+            annotations (List[Dict[str, Any]]): Anotaciones para el ploteo.
+            indices (List[int]): Índices de dependentArrays a graficar.
+        """
+        xIndex = 1 - axisToIterate
+        xValues = self.independentArrays[xIndex]
+        iterationValues = self.independentArrays[axisToIterate]
+
+        self.fig, axes = plt.subplots(1, len(indices), figsize=(5 * len(indices), 4), sharey=True,
+                                      constrained_layout=True)
+        if len(indices) == 1:
+            axes = [axes]
+
+        for ax, i in zip(axes, indices):
+            Z = self.dependentArrays[i]  # shape: (len(y), len(x))
+
+            if axisToIterate == 0:
+                # Cada fila es una línea
+                for idx, val in enumerate(iterationValues):
+                    formattedVal = formatNumberListSmart([val])[0]
+                    ax.plot(xValues, Z[idx, :], label=f"{self.plottingInfo['labels'][0][0]} = {formattedVal}")
+            else:
+                # Cada columna es una línea
+                for idx, val in enumerate(iterationValues):
+                    formattedVal = formatNumberListSmart([val])[0]
+                    ax.plot(xValues, Z[:, idx], label=f"{self.plottingInfo['labels'][0][1]} = {formattedVal}")
+
+            ax.set_ylabel(self.plottingInfo["labels"][1][i])
+            ax.legend(fontsize="x-small")
+            self._apply_options(ax, i, is2D=False)
+
+            if annotations:
+                self._drawAnnotations(ax, annotations)
+
+        axes[-1].set_xlabel(self.plottingInfo["labels"][0][xIndex])
         self._setTitleAndAdjust(self.plottingInfo["title"])
 
         for ax in axes:

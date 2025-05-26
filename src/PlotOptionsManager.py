@@ -15,6 +15,7 @@ class PlotOptions(Enum):
     PLOT_ONLY = "plotOnly"
     DRAW_1D_LINES = "draw1DLines"
     GAUSSIAN_FILTER = "gaussianFilter"
+    ANNOTATE = "annotate"
 
 
 class PlotOptionsManager:

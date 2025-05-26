@@ -54,3 +54,39 @@ def getLatestSimulationFile(dataPath: str) -> str:
 
     # Return the most recent file
     return os.path.join(dataFolder, files[0])
+
+
+def formatNumberListSmart(values):
+    def needsScientific(val):
+        return abs(val) > 99.99 or abs(val) < 0.001
+
+    # Excluir ceros o valores muy pequeños en comparación con el máximo absoluto
+    nonZeroValues = [abs(v) for v in values if abs(v) > 1e-12]
+    maxAbs = max(nonZeroValues) if nonZeroValues else 1.0
+
+    def isNegligible(val):
+        return abs(val) < 1e-6 * maxAbs  # Por ejemplo: < 1ppm del valor mayor
+
+    filteredValues = [v for v in values if not isNegligible(v)]
+    useScientific = any(needsScientific(v) for v in filteredValues)
+
+    formattedValues = []
+    if useScientific:
+        for v in values:
+            if abs(v) < 1e-12:
+                formattedValues.append("0")
+            else:
+                for decimals in range(1, 4):
+                    formatted = f"{v:.{decimals}e}"
+                    significand = float(formatted.split('e')[0])
+                    if round(significand, decimals) == round(significand, 4):
+                        break
+                formattedValues.append(formatted)
+    else:
+        for v in values:
+            formattedVal = f"{v:.3f}"
+            if '.' in formattedVal:
+                formattedVal = formattedVal.rstrip('0').rstrip('.')
+            formattedValues.append(formattedVal)
+
+    return formattedValues
