@@ -15,8 +15,8 @@ Script for observe the current resonances when varying over the modulus of the m
 timeStart = time()
 
 # Define iteration arrays
-scanAngleValues = np.linspace(0, 1, 300)  # scan_angle (in units of π)
-magneticFieldModulus = np.linspace(0.0, 2.5, 300)  # magnetic field
+scanAngleValues = np.linspace(0, 1, 30)  # scan_angle (in units of π)
+magneticFieldModulus = np.linspace(0.0, 2.5, 30)  # magnetic field
 
 # Set fixed simulation parameters
 DQDSystemFactory.changeParameter(DQDAttributes.DETUNING.value, 0.8)
@@ -32,6 +32,7 @@ DQDSystemFactory.addToPlotOptions(PlotOptions.COLOR_BAR_MAX.value, 0.35)
 DQDSystemFactory.addToPlotOptions(PlotOptions.PLOT_ONLY.value, None)
 DQDSystemFactory.addToPlotOptions(PlotOptions.LOG_COLOR_BAR.value, False)
 DQDSystemFactory.addToPlotOptions(PlotOptions.GAUSSIAN_FILTER.value, False)
+DQDSystemFactory.addToPlotOptions(PlotOptions.ANNOTATE.value, True)
 
 # Set custom title fields
 DQDSystemFactory.addToTitle(DQDAttributes.DETUNING.value)
@@ -41,7 +42,6 @@ DQDSystemFactory.addToTitle(DQDAttributes.SOC_THETA_ANGLE.value)
 
 # Create and simulate the system
 dqdSystem = DQDSystemFactory.scanAngleVsMagneticFieldModule(scanAngleValues, magneticFieldModulus)
-dqdSystem.runSimulation()
 
 # Plot results using factory-managed options and title
 dqdSystem.plotSimulation(
