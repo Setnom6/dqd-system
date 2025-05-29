@@ -31,11 +31,11 @@ class TestDQDLabelFormatter(unittest.TestCase):
         label = formatter.formatLatexLabel("gFactorZLeft")
         self.assertEqual(label, r"$g$$_{{Z}}$$_{{LEFT}}$")
 
-    def testFormatLatexLabelDividedByMuBAndOmega(self):
+    def testFormatLatexLabelDividedByOmegaandMultipliedByMuB(self):
         """Test formatting of a LaTeX label divided by both muB and omega."""
         formatter = DQDLabelFormatter([])
         label = formatter.formatLatexLabel("magneticField")
-        self.assertEqual(label, r"$B$/$\omega$$\mu_B$")
+        self.assertEqual(label, r"$\mu_B$$B$/$\omega$")
 
     def testGetLabels(self):
         """Test retrieval of formatted labels for iteration features."""
