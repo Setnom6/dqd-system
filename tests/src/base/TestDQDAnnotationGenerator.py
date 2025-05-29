@@ -55,7 +55,7 @@ class TestDQDAnnotationGenerator(unittest.TestCase):
         for annotation in annotations:
             y_value = annotation["data"]["y"]
             self.assertTrue(isinstance(y_value, float))
-            self.assertIn(y_value, [n + detuning for n in range(2)] + [n - detuning for n in range(2)])
+            self.assertIn(y_value, [n + detuning for n in range(3)] + [n - detuning for n in range(3)])
 
     def testExpectedGTensorResonancesOutput(self):
         """Test the output of ExpectedGTensorResonances annotations."""
